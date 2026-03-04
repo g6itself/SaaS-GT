@@ -1,0 +1,96 @@
+[package]
+name = "achievement-tracker"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# ─── Leptos (frontend + SSR) ─────────────────────────────────────────────────
+leptos = { version = "0.8" }
+leptos_meta = { version = "0.8" }
+leptos_router = { version = "0.8" }
+leptos_actix = { version = "0.8", optional = true }
+
+# ─── Web framework (server only) ─────────────────────────────────────────────
+actix-web = { version = "4", features = ["macros"], optional = true }
+actix-files = { version = "0.6", optional = true }
+
+# ─── Base de donnees (server only) ───────────────────────────────────────────
+sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "macros", "chrono", "uuid"], optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
+
+# ─── Serialisation (partage client/serveur) ──────────────────────────────────
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# ─── HTTP client pour APIs gaming (server only) ─────────────────────────────
+reqwest = { version = "0.12", features = ["json"], optional = true }
+
+# ─── Authentification (server only) ──────────────────────────────────────────
+jsonwebtoken = { version = "9", optional = true }
+argon2 = { version = "0.5", optional = true }
+
+# ─── Configuration (server only) ─────────────────────────────────────────────
+dotenvy = { version = "0.15", optional = true }
+
+# ─── Logs (server only) ─────────────────────────────────────────────────────
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+
+# ─── HTTP types ──────────────────────────────────────────────────────────────
+http = { version = "1", optional = true }
+
+# ─── WASM ────────────────────────────────────────────────────────────────────
+wasm-bindgen = "0.2"
+console_error_panic_hook = "0.1"
+
+# ─── Async trait ─────────────────────────────────────────────────────────────
+async-trait = { version = "0.1", optional = true }
+
+[features]
+csr = ["leptos/csr"]
+hydrate = ["leptos/hydrate"]
+ssr = [
+    "dep:actix-web",
+    "dep:actix-files",
+    "dep:leptos_actix",
+    "dep:sqlx",
+    "dep:tokio",
+    "dep:reqwest",
+    "dep:jsonwebtoken",
+    "dep:argon2",
+    "dep:dotenvy",
+    "dep:tracing-subscriber",
+    "dep:http",
+    "dep:async-trait",
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+]
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[package.metadata.leptos]
+output-name = "achievement-tracker"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+style-file = "style/main.scss"
+assets-dir = "assets"
+site-addr = "0.0.0.0:3000"
+reload-port = 3001
+browserquery = "defaults"
+env = "DEV"
+bin-features = ["ssr"]
+bin-default-features = false
+lib-features = ["hydrate"]
+lib-default-features = false
+lib-profile-release = "wasm-release"

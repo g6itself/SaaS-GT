@@ -1,0 +1,21 @@
+# ─── Dockerfile Node.js – Mode Développement ────────────────────────────────
+FROM node:20-slim
+
+# Dépendances système pour les modules natifs (pg, bcrypt, etc.)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copie uniquement les manifestes pour profiter du cache Docker
+COPY package*.json ./
+RUN npm install
+
+EXPOSE 3000
+
+# La commande réelle est définie dans docker-compose (npm run dev)
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,35 @@
+# Variables d'environnement (NE JAMAIS committer)
+.env
+
+# Artefacts Rust
+rust-app/target/
+target/
+
+# Leptos build output
+rust-app/target/site/
+
+# Node.js
+node-app/node_modules/
+node-app/.next/
+node-app/dist/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/settings.json
+
+# Docker volumes locaux
+postgres_data/
+
+# Cargo lock (optionnel - garder pour les applications, ignorer pour les libraries)
+# rust-app/Cargo.lock
