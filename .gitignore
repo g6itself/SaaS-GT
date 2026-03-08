@@ -1,9 +1,17 @@
 # Variables d'environnement (NE JAMAIS committer)
 .env
 
+# Certificats TLS (générés localement)
+certs/
+node-app/certs/
+*.key
+*.crt
+*.pem
+
 # Artefacts Rust
 rust-app/target/
 target/
+rust-app/pkg/
 
 # Leptos build output
 rust-app/target/site/
@@ -12,6 +20,7 @@ rust-app/target/site/
 node-app/node_modules/
 node-app/.next/
 node-app/dist/
+node-app/web/
 
 # Logs
 *.log
@@ -31,5 +40,12 @@ Desktop.ini
 # Docker volumes locaux
 postgres_data/
 
-# Cargo lock (optionnel - garder pour les applications, ignorer pour les libraries)
-# rust-app/Cargo.lock
+# Fichiers sensibles PostgreSQL (mots de passe, config locale)
+postgres/pgpassfile
+postgres/postgresql.dev.conf
+
+# Uploads utilisateurs
+node-app/public/uploads/
+
+# Fichiers temporaires / debug
+rust-app/errors.txt

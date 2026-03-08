@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connexion — Glorious Trophée</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#2997ff',
+                        surface: '#111111',
+                        'surface-hover': '#161616',
+                        subtle: '#86868b',
+                        border: 'rgba(255,255,255,0.06)'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        .auth-hidden {
+            display: none !important;
+        }
+
+        body {
+            background-color: #000;
+            color: #f5f5f7;
+            -webkit-font-smoothing: antialiased;
+            letter-spacing: -0.011em;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-glass {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .stagger-item {
+            opacity: 0;
+            transform: translateY(15px);
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: #111111;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .input-clean {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            color: #fff;
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .input-clean:focus {
+            border-color: rgba(41, 151, 255, 0.4);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.1);
+        }
+
+        .input-clean::placeholder {
+            color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: #fff;
+            color: #000;
+            font-weight: 500;
+            border-radius: 8px;
+            padding: 12px;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #f5f5f7;
+            transform: scale(1.02);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--subtle);
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            border-bottom-color: #fff;
+        }
+
+        .tab-btn:hover:not(.active) {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        #auth-title {
+            transition: opacity 0.5s ease;
+        }
+
+        .form-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity 1s ease;
+        }
+
+        @keyframes fadeInPopup {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .anim-popup {
+            animation: fadeInPopup 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .form-view.active {
+            position: relative;
+            opacity: 1;
+            pointer-events: auto;
+            visibility: visible;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col relative overflow-hidden">
+
+    <!-- Nav ultra minimale -->
+    <nav class="absolute top-0 w-full z-50">
+        <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+            <a href="/index.html"
+                class="flex items-center gap-3 font-medium text-[14px] text-subtle hover:text-white transition-colors">
+                <div
+                    class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/10">
+                    <i data-lucide="triangle" class="w-3 h-3 text-white"></i>
+                </div>
+                Glorious Trophée
+            </a>
+
+            <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
+                <a href="/index.html" class="hover:text-white transition-colors hidden sm:block">Panthéon</a>
+                <a id="nav-mon-espace" href="/profile.html"
+                    class="hover:text-white transition-colors hidden sm:block auth-hidden">Mon Espace</a>
+                <a id="nav-login" href="/login.html"
+                    class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all border border-white/5 hover:scale-105 active:scale-95">Connexion</a>
+                <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]"
+                    onclick="logout()">Déconnexion</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Décoration d'arrière-plan (Glow) -->
+    <div
+        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand/10 rounded-full blur-[120px] pointer-events-none">
+    </div>
+
+    <!-- Contenu Principal Centré -->
+    <main class="flex-grow flex items-center justify-center p-6 relative z-10 w-full pt-20">
+
+        <div class="w-full max-w-[400px] stagger-item" style="animation-delay: 0.1s;">
+
+            <!-- En-tête -->
+            <div class="text-center mb-8">
+                <h1 id="auth-title" class="text-2xl font-semibold text-white mb-2 tracking-tight">Accédez à votre espace
+                </h1>
+            </div>
+
+            <!-- Authentification Card -->
+            <div class="card overflow-hidden">
+
+                <!-- Tabs -->
+                <div class="flex border-b border-border bg-black/50">
+                    <div class="tab-btn active" onclick="switchTab('login')">Connexion</div>
+                    <div class="tab-btn" onclick="switchTab('register')">Rejoindre le Panthéon</div>
+                </div>
+
+                <div id="form-wrapper"
+                    class="relative overflow-hidden transition-[height] duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)]"
+                    style="min-height: 200px;">
+
+                    <!-- Vue Connexion -->
+                    <form id="form-login" class="form-view active p-6 sm:p-8">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-[12px] font-medium text-subtle mb-1.5 ml-1">Email</label>
+                                <input type="email" id="login-email" class="input-clean" placeholder="nom@exemple.com"
+                                    autocomplete="email" required>
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-end mb-1.5 ml-1">
+                                    <label class="block text-[12px] font-medium text-subtle">Mot de passe</label>
+                                </div>
+                                <div class="relative">
+                                    <input type="password" class="input-clean pr-10" id="login-pwd"
+                                        placeholder="••••••••" autocomplete="current-password" required>
+                                    <i data-lucide="eye"
+                                        class="w-4 h-4 text-subtle absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer hover:text-white"
+                                        onclick="togglePwd('login-pwd', this)"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="login-err"
+                            class="hidden mt-6 anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                        </div>
+
+                        <button type="submit" class="btn-primary mt-8 flex items-center justify-center gap-2">
+                            Se connecter <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </form>
+
+                    <!-- Vue Inscription -->
+                    <form id="form-register" class="form-view p-6 sm:p-8" onsubmit="handleRegister(event)">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-[12px] font-medium text-subtle mb-1.5 ml-1">Pseudonyme
+                                    Glorious</label>
+                                <input type="text" id="reg-user" class="input-clean" placeholder="Votre nom d'affichage"
+                                    required autocomplete="off" minlength="2" maxlength="15">
+                            </div>
+                            <div>
+                                <label class="block text-[12px] font-medium text-subtle mb-1.5 ml-1">Adresse
+                                    Email</label>
+                                <input type="email" id="reg-email" class="input-clean" placeholder="nom@exemple.com"
+                                    required autocomplete="off">
+                            </div>
+                            <div>
+                                <label class="block text-[12px] font-medium text-subtle mb-1.5 ml-1">Mot de
+                                    passe</label>
+                                <div class="relative">
+                                    <input type="password" class="input-clean pr-10" id="reg-pwd"
+                                        placeholder="12 caractères min. + 1 caractère spécial" required>
+                                    <i data-lucide="eye"
+                                        class="w-4 h-4 text-subtle absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer hover:text-white"
+                                        onclick="togglePwd('reg-pwd', this)"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Zone d'erreur -->
+                        <div id="reg-err"
+                            class="hidden mt-6 anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                        </div>
+
+                        <p class="text-[11px] text-subtle mt-5 mb-1 leading-relaxed text-center">
+                            En créant un compte, vous acceptez nos <a href="/conditions.html"
+                                class="text-white hover:underline">Conditions d'utilisation</a>.
+                        </p>
+
+                        <button type="submit"
+                            class="btn-primary mt-4 bg-brand text-white hover:bg-brand/90 flex items-center justify-center gap-2">
+                            <i data-lucide="user-plus" class="w-4 h-4"> </i> Devenez Glorieux</i>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Intégrations / Social Login -->
+                <div class="border-t border-border bg-black/30 p-6 flex flex-col items-center">
+                    <span class="text-[11px] text-subtle mb-4 uppercase tracking-widest font-semibold">Continuer
+                        avec</span>
+                    <div class="flex gap-3 w-full">
+                        <button
+                            class="flex-1 flex items-center justify-center gap-2 bg-[#171a21] hover:bg-white/10 border border-white/5 text-white text-[13px] py-2.5 rounded-lg transition-colors">
+                            <i data-lucide="cloud" class="w-4 h-4"></i> Steam
+                        </button>
+                        <button
+                            class="flex-1 flex items-center justify-center gap-2 bg-[#107C10]/20 hover:bg-[#107C10]/40 border border-[#107C10]/40 text-[#107C10] text-[13px] py-2.5 rounded-lg transition-colors">
+                            <i data-lucide="box" class="w-4 h-4"></i> Xbox
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Copyright -->
+    <div
+        class="absolute bottom-4 left-0 w-full text-center text-[11px] text-white/30 font-medium tracking-wide z-40 pointer-events-none">
+        © 2026 Glorious Trophée. Tous droits réservés. <span class="mx-1">•</span> <a href="/legal.html"
+            class="hover:text-white transition-colors cursor-pointer pointer-events-auto">Mentions légales</a>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Déjà connecté → aller au profil
+        if (localStorage.getItem('auth_token')) {
+            location.href = '/profile.html';
+        }
+
+        function switchTab(tab) {
+            const btn = event.currentTarget;
+            if (btn && btn.classList.contains('active')) return;
+
+            document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+
+            const wrapper = document.getElementById('form-wrapper');
+            const oldForm = document.querySelector('.form-view.active');
+            const newForm = document.getElementById('form-' + tab);
+
+            // Fix current height to prevent jump
+            wrapper.style.height = wrapper.offsetHeight + 'px';
+            wrapper.offsetHeight; // Force reflow
+
+            // Switch classes
+            oldForm.classList.remove('active');
+            newForm.classList.add('active');
+
+            // Start transitioning height to the new form's natural height
+            wrapper.style.height = newForm.offsetHeight + 'px';
+
+            // Clean up hardcoded height after transition finishes
+            setTimeout(() => {
+                wrapper.style.height = 'auto';
+            }, 1000);
+
+            // Animate title
+            const title = document.getElementById('auth-title');
+            if (title) {
+                title.style.opacity = '0';
+                setTimeout(() => {
+                    title.textContent = tab === 'login' ? 'Accédez à votre espace' : 'Créez votre espace';
+                    title.style.opacity = '1';
+                }, 500); // Change text when invisible
+            }
+        }
+
+        function togglePwd(id, icon) {
+            const input = document.getElementById(id);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = 'password';
+                icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        // ── Helper : fetch avec timeout ──────────────────────────────────────
+        function fetchWithTimeout(url, options, ms = 12000) {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), ms);
+            return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+        }
+
+        // ── Connexion ──────────────────────────────────────────────────────────
+        document.getElementById('form-login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const errDiv = document.getElementById('login-err');
+            const originalHtml = btn.innerHTML;
+
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin inline-block mr-2"></div>Connexion...';
+            btn.disabled = true;
+            errDiv.classList.add('hidden');
+
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-pwd').value;
+
+            try {
+                const res = await fetchWithTimeout('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('auth_user', data.user?.username || '');
+                    location.href = '/profile.html';
+                    return;
+                }
+                errDiv.textContent = 'Email ou mot de passe incorrect.';
+                errDiv.classList.remove('hidden');
+            } catch (err) {
+                errDiv.textContent = err.name === 'AbortError'
+                    ? 'Le serveur ne répond pas. Réessayez plus tard.'
+                    : 'Erreur réseau. Veuillez réessayer.';
+                errDiv.classList.remove('hidden');
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        });
+
+        // ── Inscription ────────────────────────────────────────────────────────
+        async function handleRegister(e) {
+            e.preventDefault();
+            const errDiv = document.getElementById('reg-err');
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalBtnHtml = btn.innerHTML;
+
+            errDiv.classList.add('hidden');
+            errDiv.innerHTML = '';
+
+            const user = document.getElementById('reg-user').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const pwd = document.getElementById('reg-pwd').value;
+
+            // Validation email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errDiv.innerHTML = "L'adresse email n'a pas un format valide.";
+                errDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Validation pseudo
+            if (user.length < 2) {
+                errDiv.innerHTML = 'Le pseudo doit contenir au moins 2 caractères.';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+            if (user.length > 15) {
+                errDiv.innerHTML = 'Le pseudo ne peut pas dépasser 15 caractères.';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+            if (!/^[a-zA-Z0-9_-]+$/.test(user)) {
+                errDiv.innerHTML = 'Le pseudo ne peut contenir que des lettres, chiffres, tirets (<strong>-</strong>) et underscores (<strong>_</strong>). Pas d\'espaces.';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Validation mot de passe (12 chars + spécial)
+            const specialCharRegex = /[!@#$%^&*(),.?":{}|<>_+\-=\[\]\\\/]/;
+            if (pwd.length < 12 || !specialCharRegex.test(pwd)) {
+                errDiv.innerHTML = 'Le mot de passe doit contenir <strong>au moins 12 caractères</strong> et <strong>un caractère spécial</strong>.';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+
+            btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Création...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetchWithTimeout('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, username: user, password: pwd }),
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('auth_user', data.user?.username || user);
+                    location.href = '/profile.html';
+                    return;
+                }
+                errDiv.textContent = data.error || data.message || "Erreur lors de l'inscription.";
+                errDiv.classList.remove('hidden');
+            } catch (err) {
+                errDiv.textContent = err.name === 'AbortError'
+                    ? "Le serveur ne répond pas. Réessayez plus tard."
+                    : "Erreur réseau. Veuillez réessayer.";
+                errDiv.classList.remove('hidden');
+            } finally {
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        if (localStorage.getItem('auth_token')) {
+            document.getElementById('nav-mon-espace')?.classList.remove('auth-hidden');
+            document.getElementById('nav-login')?.classList.add('hidden');
+            document.getElementById('nav-logout')?.classList.remove('hidden');
+
+            // Si on est déjà connecté sur la page de login, on redirige vers le profil
+            window.location.replace('/profile.html');
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            window.location.reload();
+        }
+
+        // ── Custom HTML5 Validation Tooltips ─────────────────────────────────
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('invalid', (e) => {
+                e.preventDefault();
+                showCustomError(e.target, e.target.validationMessage);
+            }, true);
+            form.addEventListener('input', (e) => hideCustomError(e.target));
+            form.addEventListener('change', (e) => hideCustomError(e.target));
+        });
+
+        function getValidationTarget(input) {
+            if (input.parentElement.classList.contains('relative') || input.parentElement.tagName === 'LABEL') {
+                return input.parentElement;
+            }
+            return input;
+        }
+
+        function showCustomError(input, msg) {
+            hideCustomError(input);
+            const err = document.createElement('div');
+            err.className = 'custom-validation-popup anim-popup mt-2.5 px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 text-[12px] font-medium leading-relaxed shadow-sm w-full flex gap-2.5 items-start z-10 relative';
+            err.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5 text-red-400"></i><span class="opacity-90">${msg}</span>`;
+            getValidationTarget(input).insertAdjacentElement('afterend', err);
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function hideCustomError(input) {
+            const target = getValidationTarget(input);
+            if (target.nextElementSibling && target.nextElementSibling.classList.contains('custom-validation-popup')) {
+                target.nextElementSibling.remove();
+            }
+        }
+    </script>
+</body>
+
+</html>

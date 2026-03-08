@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glorious Trophée — Panthéon</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: '#2997ff',
+            surface: '#111111',
+            'surface-hover': '#161616',
+            subtle: '#86868b',
+            border: 'rgba(255,255,255,0.06)'
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      background-color: #000000;
+      color: #f5f5f7;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      letter-spacing: -0.011em;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Ubiquiti / Vercel style Nav ── */
+    .nav-glass {
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Table Row alternative ── */
+    .leaderboard-row {
+      display: grid;
+      grid-template-columns: 80px minmax(0, 1fr) 120px 120px 120px 140px;
+      align-items: center;
+      padding: 18px 24px;
+      border-radius: 12px;
+      transition: background-color 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+      cursor: pointer;
+      position: relative;
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 1024px) {
+      .leaderboard-row {
+        grid-template-columns: 60px minmax(0, 1fr) 100px 120px 120px;
+      }
+
+      .hide-mobile {
+        display: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .leaderboard-row {
+        grid-template-columns: 50px minmax(0, 1fr) 100px 120px;
+      }
+
+      .hide-sm {
+        display: none;
+      }
+    }
+
+    .leaderboard-row:hover {
+      background-color: var(--surface-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      border-color: rgba(255, 255, 255, 0.12);
+      z-index: 10;
+    }
+
+    .leaderboard-row:active {
+      transform: translateY(0);
+    }
+
+    /* ── Typographie ── */
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-feature-settings: "tnum";
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Animation d'entrée Staggered ── */
+    .stagger-item {
+      opacity: 0;
+      transform: translateY(15px);
+      animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ── Rang Styles ── */
+    .rank-1 {
+      color: #f59e0b;
+      text-shadow: 0 0 16px rgba(245, 158, 11, 0.4);
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+
+    /* Légendaire / Or */
+    .rank-2 {
+      color: #e2e8f0;
+      text-shadow: 0 0 16px rgba(226, 232, 240, 0.4);
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+
+    /* Argent */
+    .rank-3 {
+      color: #b45309;
+      text-shadow: 0 0 16px rgba(180, 83, 9, 0.4);
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+
+    /* Bronze */
+    .rank-default {
+      color: var(--subtle);
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+
+    /* Custom Avatar Glows for Top 3 */
+    .avatar-1 {
+      box-shadow: 0 0 0 2px #f59e0b, 0 0 20px rgba(245, 158, 11, 0.3);
+    }
+
+    .avatar-2 {
+      box-shadow: 0 0 0 2px #e2e8f0, 0 0 20px rgba(226, 232, 240, 0.3);
+    }
+
+    .avatar-3 {
+      box-shadow: 0 0 0 2px #b45309, 0 0 20px rgba(180, 83, 9, 0.3);
+    }
+
+    /* Cacher complètement la scrollbar pour tous les éléments tout en gardant le scroll actif */
+    * {
+      scrollbar-width: none;
+      /* Firefox */
+      -ms-overflow-style: none;
+      /* IE and Edge */
+    }
+
+    *::-webkit-scrollbar {
+      display: none;
+      /* Chrome, Safari and Opera */
+    }
+  </style>
+</head>
+
+<body class="selection:bg-brand/30 selection:text-white h-[100dvh] overflow-hidden flex flex-col">
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 w-full z-50 nav-glass">
+    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+      <a href="/index.html"
+        class="flex items-center gap-3 font-medium text-[14px] text-subtle hover:text-white cursor-pointer transition-colors">
+        <div
+          class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 transition-transform hover:scale-110 hover:bg-white/10 hover:border-white/30">
+          <i data-lucide="triangle" class="w-3 h-3 text-white"></i>
+        </div>
+        Glorious Trophée
+      </a>
+
+      <!-- Omni Search -->
+      <div class="hidden md:flex flex-1 max-w-md mx-8 relative group">
+        <i data-lucide="search"
+          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle group-focus-within:text-brand transition-colors"></i>
+        <input type="text" placeholder="Rechercher un profil..."
+          class="w-full bg-white/5 border border-white/10 rounded-md py-1.5 pl-9 pr-3 text-[13px] text-white placeholder-subtle outline-none focus:border-brand/50 focus:bg-white/[0.08] transition-all shadow-sm focus:shadow-[0_0_15px_rgba(41,151,255,0.15)]">
+        <div
+          class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 pointer-events-none opacity-100 group-focus-within:opacity-0 transition-opacity">
+          <kbd
+            class="px-1.5 py-0.5 bg-white/10 rounded-[4px] text-[10px] text-subtle font-mono border border-white/5">⌘</kbd>
+          <kbd
+            class="px-1.5 py-0.5 bg-white/10 rounded-[4px] text-[10px] text-subtle font-mono border border-white/5">K</kbd>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
+        <span class="text-white font-semibold hidden sm:block cursor-default">Panthéon</span>
+        <a id="nav-mon-espace" href="/profile.html"
+          class="hover:text-white transition-colors hidden sm:block auth-hidden">Mon Espace</a>
+        <a id="nav-login" href="/login.html"
+          class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 border border-white/5">Connexion</a>
+        <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]"
+          onclick="logout()">Déconnexion</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="w-full max-w-6xl mx-auto px-6 pt-28 relative z-10 flex-grow flex flex-col h-full overflow-hidden">
+
+    <!-- Hero Leaderboard -->
+    <div class="mb-10 text-center stagger-item" style="animation-delay: 0.1s;">
+      <h1 class="text-4xl md:text-5xl font-semibold tracking-tight text-white mb-3">Le Panthéon Global</h1>
+    </div>
+
+    <!-- Leaderboard Container (Flex-grow pour remplir l'espace restant) -->
+    <div class="flex-1 flex flex-col relative w-full mb-10 min-h-0">
+
+      <!-- Table Header -->
+      <div
+        class="grid grid-cols-[80px_minmax(0,1fr)_120px_120px_120px_140px] px-6 pb-3 text-[11px] font-semibold text-subtle uppercase tracking-widest border-b border-white/5 mb-4 stagger-item hide-sm"
+        style="animation-delay: 0.3s;">
+        <div class="text-center">Rang</div>
+        <div>Joueur</div>
+        <div class="text-right">Succès</div>
+        <div class="text-right hide-mobile">Jeux GT</div>
+        <div class="text-right hide-mobile">Complétion</div>
+        <div class="text-right">Score Glorious</div>
+      </div>
+
+      <!-- Leaderboard dynamique — rempli par JS -->
+      <div id="leaderboard-list" class="flex-1 overflow-y-auto pr-2 pb-16"
+        style="mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 85%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 85%, transparent 100%);">
+        <!-- État de chargement -->
+        <div id="leaderboard-loading" class="flex flex-col items-center justify-center py-20 gap-4 stagger-item"
+          style="animation-delay: 0.4s;">
+          <div class="w-8 h-8 border-2 border-brand/30 border-t-brand rounded-full animate-spin"></div>
+          <span class="text-subtle text-[13px]">Chargement du Panthéon…</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <style>
+    .auth-hidden {
+      display: none !important;
+    }
+
+    .animate-spin-slow {
+      animation: spin 3s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+
+  <script>
+    // ── Protection XSS : échappement HTML ──────────────────────────────────
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    function sanitizeUrl(url) {
+      if (!url) return '';
+      try {
+        const u = new URL(url, location.origin);
+        if (u.protocol === 'https:' || u.protocol === 'http:') return url;
+        if (url.startsWith('/')) return url;
+        if (url.startsWith('data:image/')) return url;
+      } catch { }
+      return '';
+    }
+
+    // ── Couleurs par ligue ──────────────────────────────────────────────────
+    const LEAGUE_COLORS = {
+      'Orbit': '#86868b',
+      'Horizon': '#4f7fff',
+      'Nebula': '#7c3aed',
+      'Pulsar': '#06b6d4',
+      'Zenith': '#10b981',
+      'Eclipse': '#f97316',
+      'Supernova': '#ef4444',
+      'Apex': '#f59e0b',
+      'Quasar': '#a855f7',
+      'Singularity': 'linear-gradient(90deg,#f59e0b,#ef4444,#a855f7)',
+    };
+
+    // ── Formatage des points ────────────────────────────────────────────────
+    function fmtPts(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+      if (n >= 1_000) return Math.round(n / 1_000) + 'K';
+      return n.toString();
+    }
+
+    // ── Formatage des succès ────────────────────────────────────────────────
+    function fmtAch(n) {
+      if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+      return n.toString();
+    }
+
+    // ── Avatar (déterministe sur le username) ───────────────────────────────
+    function avatarUrl(username, imageUrl) {
+      const sanitized = sanitizeUrl(imageUrl);
+      if (sanitized) return sanitized;
+      let h = 0;
+      for (let i = 0; i < username.length; i++) h = (h * 31 + username.charCodeAt(i)) & 0xffff;
+      return `https://i.pravatar.cc/150?img=${(h % 70) + 1}`;
+    }
+
+    // ── Couleur du score selon le rang ──────────────────────────────────────
+    function scoreColor(rank) {
+      if (rank === 1) return 'text-amber-500';
+      if (rank === 2) return 'text-slate-300';
+      if (rank === 3) return 'text-amber-600';
+      return 'text-white';
+    }
+
+    // ── Construction d'une ligne du classement ──────────────────────────────
+    function buildRow(e, delay) {
+      const rankClass = e.rank <= 3 ? `rank-${e.rank}` : 'rank-default';
+      const avatarClass = e.rank <= 3 ? `avatar-${e.rank}` : '';
+      const hoverName = e.rank === 1 ? 'group-hover:text-amber-500'
+        : e.rank === 2 ? 'group-hover:text-slate-300'
+          : e.rank === 3 ? 'group-hover:text-amber-700'
+            : 'group-hover:text-brand';
+      const imgFilter = e.rank <= 3 ? '' : 'grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100';
+      const verifiedBadge = e.rank <= 3
+        ? '<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-brand shrink-0"></i>'
+        : '';
+      const leagueColor = LEAGUE_COLORS[e.league] || '#86868b';
+      const safeLeague = escapeHtml(e.league);
+      const leagueBadge = `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded border" style="color:${leagueColor};border-color:${leagueColor}40;background:${leagueColor}14">${safeLeague}</span>`;
+      const completionPct = e.completion_avg.toFixed(1);
+      const barOpacity = e.rank === 1 ? '1' : e.rank === 2 ? '0.8' : e.rank === 3 ? '0.6' : '0.4';
+
+      // Mock Perfect Games (Based on rank to seem logical but random)
+      const mockPerfectGames = Math.floor(Math.random() * 51); // Random number between 0 and 50
+
+      const safeUsername = escapeHtml(e.username);
+      const safeDisplayName = escapeHtml(e.display_name || e.username);
+      const safeAvatarUrl = escapeHtml(avatarUrl(e.username, e.profile_image_url));
+      const encodedUser = encodeURIComponent(e.username);
+
+      return `
+        <div class="leaderboard-row stagger-item group" style="animation-delay:${delay}s" onclick="location.href='/profile.html?u=${encodedUser}'" role="link" tabindex="0" onkeydown="if(event.key==='Enter')location.href='/profile.html?u=${encodedUser}'">
+          <div class="text-center ${rankClass} num">${e.rank}</div>
+          <div class="flex items-center gap-4 min-w-0">
+            <div class="w-12 h-12 rounded-full bg-surface border border-white/10 flex items-center justify-center overflow-hidden shrink-0 ${avatarClass} transition-transform group-hover:scale-105">
+              <img src="${safeAvatarUrl}" alt="${safeUsername}" class="w-full h-full object-cover ${imgFilter} transition-all" onerror="this.onerror=null;this.src='https://i.pravatar.cc/150?img=1'">
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 mb-0.5">
+                <h2 class="font-medium text-[15px] text-white truncate ${hoverName} transition-colors">${safeDisplayName}</h2>
+                ${verifiedBadge}
+              </div>
+              <div class="flex items-center gap-2">
+                ${leagueBadge}
+                <span class="text-[11px] text-subtle truncate">${safeUsername}</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-right hide-sm flex flex-col items-end justify-center">
+            <div class="text-[14px] font-medium text-white num">${fmtAch(e.total_achievements)}</div>
+            <div class="flex items-center gap-1 mt-0.5">
+              <i data-lucide="award" class="w-3 h-3 text-brand"></i>
+              <span class="text-[11px] text-subtle num">succès</span>
+            </div>
+          </div>
+          <div class="text-right hide-mobile flex flex-col items-end justify-center">
+            <div class="text-[14px] font-medium text-white/90 num flex items-center gap-1.5">
+              ${mockPerfectGames}
+            </div>
+            <div class="text-[11px] text-brand/80 px-1.5 rounded-sm bg-brand/10 font-medium mt-0.5 tracking-wide">
+              GT
+            </div>
+          </div>
+          <div class="text-right hide-mobile flex flex-col items-end justify-center">
+            <div class="text-[14px] font-medium text-white/90 num">${completionPct}%</div>
+            <div class="w-16 h-1 mt-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div class="h-full bg-white rounded-full transition-all duration-1000" style="width:${completionPct}%; opacity:${barOpacity}"></div>
+            </div>
+          </div>
+          <div class="text-right flex flex-col items-end justify-center">
+            <div class="text-[16px] font-bold ${scoreColor(e.rank)} num tracking-tight">${fmtPts(e.total_points)}</div>
+            <div class="text-[10px] text-subtle uppercase">Points</div>
+          </div>
+        </div>`;
+    }
+
+    // ── Chargement du classement ────────────────────────────────────────────
+    async function loadLeaderboard() {
+      const container = document.getElementById('leaderboard-list');
+      try {
+        const res = await fetch('/api/leaderboard');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          container.innerHTML = '<div class="text-center text-subtle py-12 text-[13px]">Aucun joueur pour le moment.</div>';
+          return;
+        }
+
+        const rows = data.map((e, i) => buildRow(e, 0.4 + Math.min(i, 20) * 0.04)).join('');
+        container.innerHTML = rows;
+        lucide.createIcons();
+      } catch (err) {
+        console.error('Leaderboard fetch error:', err);
+        container.innerHTML = `
+          <div class="text-center py-12 text-[13px] text-subtle flex flex-col items-center gap-3">
+            <i data-lucide="wifi-off" class="w-8 h-8 text-subtle/50"></i>
+            <span>Impossible de charger le classement.</span>
+            <button onclick="loadLeaderboard()" class="mt-1 px-4 py-1.5 rounded-full border border-border text-white hover:bg-white/5 transition-colors text-[12px]">Réessayer</button>
+          </div>`;
+        lucide.createIcons();
+      }
+    }
+
+    // ── Visibilité nav selon authentification ────────────────────────────────
+    if (localStorage.getItem('auth_token')) {
+      document.getElementById('nav-mon-espace')?.classList.remove('auth-hidden');
+      document.getElementById('nav-login')?.classList.add('hidden');
+      document.getElementById('nav-logout')?.classList.remove('hidden');
+    }
+
+    function logout() {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      window.location.reload();
+    }
+
+    lucide.createIcons();
+    loadLeaderboard();
+
+    // ── Défilement global du Panthéon ───────────────────────────────────────
+    // Smooth scrolling pour une sensation fluide de smartphone
+    let targetScroll = 0;
+    let currentScroll = 0;
+    let isScrolling = false;
+
+    // Initialise le targetScroll avec le scroll actuel quand on arrive
+    const container = document.getElementById('leaderboard-list');
+
+    function smoothScroll() {
+      if (!container) return;
+
+      // Interpolation linéaire pour un effet de lissage (easing)
+      // 0.04 donne un effet beaucoup plus doux et traînant (slow mo fluide)
+      currentScroll += (targetScroll - currentScroll) * 0.04;
+      container.scrollTop = currentScroll;
+
+      // Si on est très proche de la cible, on s'arrête pour préserver le CPU
+      if (Math.abs(targetScroll - currentScroll) < 0.5) {
+        currentScroll = targetScroll;
+        container.scrollTop = currentScroll;
+        isScrolling = false;
+      } else {
+        requestAnimationFrame(smoothScroll);
+      }
+    }
+
+    window.addEventListener('wheel', (e) => {
+      if (container) {
+        // Empêcher le scroll brutal natif si on n'est pas déjà dessus (ou s'y on l'est)
+        e.preventDefault();
+
+        // S'assurer qu'on part de la bonne position si l'utilisateur a scrollé manuellement
+        if (!isScrolling) {
+          currentScroll = container.scrollTop;
+          targetScroll = container.scrollTop;
+        }
+
+        // Ajouter le delta avec un multiplicateur pour ralentir la distance de scroll
+        targetScroll += e.deltaY * 0.7;
+
+        // Contraindre targetScroll aux limites du container
+        targetScroll = Math.max(0, Math.min(targetScroll, container.scrollHeight - container.clientHeight));
+
+        if (!isScrolling) {
+          isScrolling = true;
+          requestAnimationFrame(smoothScroll);
+        }
+      }
+    }, { passive: false }); // Doit être false pour utiliser preventDefault
+  </script>
+
+  <!-- Footer Copyright -->
+  <div class="fixed bottom-4 right-6 text-[11px] text-white/30 font-medium tracking-wide z-40">
+    © 2026 Glorious Trophée. Tous droits réservés. <span class="mx-1">•</span> <a href="/legal.html"
+      class="hover:text-white transition-colors cursor-pointer pointer-events-auto">Mentions légales</a>
+  </div>
+</body>
+
+</html>

@@ -1,11 +1,12 @@
-version: "3.9"
+# ─── Docker Compose – Environnement de Développement ─────────────────────────
+# version: supprimé (obsolète depuis Docker Compose v2)
 
 services:
-  # ─────────────────────────────────────────
-  #  PostgreSQL
-  # ─────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  PostgreSQL 17 — base de données optimisée pour Rust async
+  # ─────────────────────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: dev_postgres
     restart: unless-stopped
     env_file: .env
@@ -14,19 +15,21 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres/postgresql.dev.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ─────────────────────────────────────────
-  #  pgAdmin (interface web PostgreSQL)
-  # ─────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  pgAdmin 4 — interface web PostgreSQL
+  # ─────────────────────────────────────────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: dev_pgadmin
@@ -35,17 +38,23 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      # Désactive le master password (pratique en dev — NE PAS UTILISER EN PROD)
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+      # Serveur PostgreSQL pré-configuré au démarrage
+      - ./postgres/pgadmin_servers.json:/pgadmin4/servers.json:ro
+      # Fichier de mots de passe pour la connexion automatique
+      - ./postgres/pgpassfile:/pgpassfile:ro
     depends_on:
       postgres:
         condition: service_healthy
 
-  # ─────────────────────────────────────────
-  #  Backend + Frontend Rust (Actix-web + Leptos SSR)
-  # ─────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Backend Rust — API uniquement (réseau Docker interne, non exposé au host)
+  # ─────────────────────────────────────────────────────────────────────────────
   rust-app:
     build:
       context: ./rust-app
@@ -61,9 +70,9 @@ services:
       LEPTOS_SITE_ROOT: "target/site"
       JWT_SECRET: ${JWT_SECRET}
       STEAM_API_KEY: ${STEAM_API_KEY}
-    ports:
-      - "3000:3000"
-      - "3001:3001"
+    # Pas de ports exposés au host — accessible uniquement via node-app sur le réseau interne
+    expose:
+      - "3000"
     volumes:
       - ./rust-app:/app
       - rust_registry:/usr/local/cargo/registry
@@ -73,9 +82,9 @@ services:
         condition: service_healthy
     command: cargo leptos watch
 
-  # ─────────────────────────────────────────
-  #  Frontend Node.js (conserve pour transition)
-  # ─────────────────────────────────────────
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Frontend Node.js — HTTP + proxy /api/* vers Rust
+  # ─────────────────────────────────────────────────────────────────────────────
   node-app:
     build:
       context: ./node-app
@@ -85,23 +94,24 @@ services:
     env_file: .env
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PORT: 3000
+      RUST_API_URL: http://rust-app:3000
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
     ports:
       - "3100:3000"
     volumes:
       - ./node-app:/app
       - node_modules:/app/node_modules
     depends_on:
-      postgres:
-        condition: service_healthy
+      - rust-app
     command: npm run dev
 
-# ─────────────────────────────────────────
-#  Volumes nommes (stockes dans Docker)
-# ─────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+#  Volumes nommés
+# ─────────────────────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
   pgadmin_data:
-  rust_registry:   # Cache du registre Cargo
-  rust_target:     # Artefacts de compilation Rust
-  node_modules:    # node_modules isoles du host
+  rust_registry:    # Cache registre Cargo (évite re-téléchargements)
+  rust_target:      # Artefacts de compilation Rust
+  node_modules:     # node_modules isolés du host

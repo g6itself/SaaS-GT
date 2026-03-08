@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profil — Glorious Trophée</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: '#2997ff',
+            surface: '#111111',
+            'surface-hover': '#161616',
+            subtle: '#86868b',
+            border: 'rgba(255,255,255,0.06)'
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        },
+      },
+    };
+  </script>
+  <style>
+    .auth-hidden {
+      display: none !important;
+    }
+
+    body {
+      background-color: #000;
+      color: #f5f5f7;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.011em;
+      min-height: 100vh;
+    }
+
+    .nav-glass {
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stagger-item {
+      opacity: 0;
+      transform: translateY(15px);
+      animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card {
+      background: #111111;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .avatar-ring-1 {
+      box-shadow: 0 0 0 3px #f59e0b, 0 0 30px rgba(245, 158, 11, 0.4);
+    }
+
+    .avatar-ring-2 {
+      box-shadow: 0 0 0 3px #e2e8f0, 0 0 30px rgba(226, 232, 240, 0.3);
+    }
+
+    .avatar-ring-3 {
+      box-shadow: 0 0 0 3px #b45309, 0 0 30px rgba(180, 83, 9, 0.3);
+    }
+
+    .avatar-ring-d {
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+    }
+
+    .rarity-common {
+      color: #9ca3af;
+    }
+
+    .rarity-rare {
+      color: #4f7fff;
+    }
+
+    .rarity-epic {
+      color: #a855f7;
+    }
+
+    .rarity-legendary {
+      color: #f59e0b;
+    }
+
+    .rarity-mythic {
+      color: #ef4444;
+    }
+
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 4px;
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .input-clean {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: #fff;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .input-clean:focus {
+      border-color: rgba(41, 151, 255, 0.4);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.1);
+    }
+
+    .input-clean::placeholder {
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: #fff;
+      color: #000;
+      font-weight: 500;
+      border-radius: 9999px;
+      padding: 12px;
+      width: 100%;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #f5f5f7;
+      transform: scale(1.02);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    @keyframes fadeInPopup {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .anim-popup {
+      animation: fadeInPopup 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+
+<body class="pb-16">
+
+  <!-- Nav -->
+  <nav class="fixed top-0 w-full z-50 nav-glass">
+    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+      <a href="/index.html"
+        class="flex items-center gap-3 font-medium text-[14px] text-subtle hover:text-white transition-colors">
+        <div
+          class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/10">
+          <i data-lucide="triangle" class="w-3 h-3 text-white"></i>
+        </div>
+        Glorious Trophée
+      </a>
+      <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
+        <a href="/index.html" class="hover:text-white transition-colors hidden sm:block">Panthéon</a>
+        <span id="nav-mon-espace" class="text-white font-semibold hidden sm:block cursor-default auth-hidden">Mon
+          Espace</span>
+        <a id="nav-login" href="/login.html"
+          class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all border border-white/5 hover:scale-105 active:scale-95">Connexion</a>
+        <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]"
+          onclick="logout()">Déconnexion</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto px-6 pt-24 pb-12">
+
+    <!-- Back -->
+    <div class="mb-8 stagger-item" style="animation-delay:0.05s">
+      <a href="/index.html"
+        class="inline-flex items-center gap-2 text-[13px] text-subtle hover:text-white transition-colors">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Retour au Panthéon
+      </a>
+    </div>
+
+    <!-- Loading -->
+    <div id="profile-loading" class="flex flex-col items-center justify-center py-32 gap-4">
+      <div class="w-8 h-8 border-2 border-brand/30 border-t-brand rounded-full animate-spin"></div>
+      <span class="text-subtle text-[13px]">Chargement du profil…</span>
+    </div>
+
+    <!-- Error -->
+    <div id="profile-error" class="hidden flex-col items-center justify-center py-32 gap-4 text-subtle text-[13px]">
+      <i data-lucide="user-x" class="w-10 h-10 opacity-30"></i>
+      <span id="error-msg">Joueur introuvable.</span>
+      <a href="/index.html"
+        class="mt-2 px-4 py-1.5 rounded-full border border-white/10 text-white hover:bg-white/5 transition-colors text-[12px]">
+        Retour au classement
+      </a>
+    </div>
+
+    <!-- Content -->
+    <div id="profile-content" class="hidden flex-col gap-8">
+
+      <!-- Header card -->
+      <div id="ph-header" class="card p-8 stagger-item" style="animation-delay:0.1s"></div>
+
+      <!-- Stats grid -->
+      <div id="ph-stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 stagger-item" style="animation-delay:0.15s"></div>
+
+      <!-- Platforms + Title -->
+      <div class="grid md:grid-cols-2 gap-4">
+        <div id="ph-platforms" class="card p-6 stagger-item" style="animation-delay:0.2s"></div>
+        <div id="ph-title" class="card p-6 stagger-item" style="animation-delay:0.25s"></div>
+      </div>
+
+      <!-- Games -->
+      <div id="ph-games" class="stagger-item" style="animation-delay:0.3s"></div>
+
+      <!-- Achievements -->
+      <div id="ph-achievements" class="stagger-item" style="animation-delay:0.35s"></div>
+
+    </div>
+  </main>
+
+  <!-- Settings Modal (Hidden by default) -->
+  <div id="settings-modal"
+    class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+    <div class="card w-full max-w-md p-6 transform scale-95 transition-transform duration-300 relative">
+      <button onclick="closeSettings()" class="absolute top-4 right-4 text-subtle hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <h2 class="text-[18px] font-semibold text-white mb-6 flex items-center gap-2">
+        <i data-lucide="settings" class="w-5 h-5 brand-text"></i>
+        Réglages du profil
+      </h2>
+
+      <form id="form-settings" onsubmit="saveSettings(event)" class="space-y-5">
+        <div>
+          <label class="block text-[13px] font-medium text-white/90 mb-3 ml-1">Nom d'affichage</label>
+          <input type="text" id="settings-display-name" class="input-clean" placeholder="Votre nom affiché"
+            autocomplete="off" required minlength="2" maxlength="15">
+        </div>
+
+        <div id="settings-err"
+          class="hidden anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+        </div>
+        <div id="settings-success"
+          class="hidden anim-popup px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+          Profil mis à jour !</div>
+
+        <div class="pt-2 flex justify-end gap-3">
+          <button type="button" onclick="closeSettings()"
+            class="px-4 py-2 rounded-full text-[13px] font-medium text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
+          <button type="submit" class="btn-primary min-w-[120px]">
+            <span id="settings-btn-text">Enregistrer</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Avatar Modal (Hidden by default) -->
+  <div id="avatar-modal"
+    class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+    <div class="card w-full max-w-md p-6 transform scale-95 transition-transform duration-300 relative">
+      <button onclick="closeAvatarModal()"
+        class="absolute top-4 right-4 text-subtle hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <h2 class="text-[18px] font-semibold text-white mb-6 flex items-center gap-2">
+        <i data-lucide="camera" class="w-5 h-5 brand-text"></i>
+        Photo de profil
+      </h2>
+
+      <form id="form-avatar" onsubmit="saveAvatar(event)" class="space-y-5">
+        <div>
+          <label class="block text-[13px] font-medium text-white/90 mb-1.5 ml-1">Format .jpeg/.png (64x64
+            recommandé)</label>
+          <div class="flex flex-col gap-3">
+            <label
+              class="w-full cursor-pointer flex items-center justify-center gap-2 px-3 py-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-[13px] text-white/80">
+              <i data-lucide="upload" class="w-5 h-5"></i>
+              <span id="avatar-file-name">Sélectionner un fichier (20 Mo max)</span>
+              <input type="file" id="avatar-file" accept="image/png, image/jpeg, image/webp, image/gif" class="hidden"
+                onchange="handleAvatarFileSelect(event)">
+            </label>
+            <div class="flex items-center justify-between px-1 mt-1">
+              <p class="text-[11px] text-subtle/60">Sélectionnez une image ou retirez-la pour utiliser l'avatar par
+                défaut.</p>
+              <button type="button"
+                onclick="document.getElementById('avatar-file-name').textContent='Sélectionner un fichier (20 Mo max)'; document.getElementById('avatar-file').dataset.cleared='true'; document.getElementById('avatar-file').value='';"
+                class="text-[11px] px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded transition-colors">Retirer</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="avatar-err"
+          class="hidden anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+        </div>
+        <div id="avatar-success"
+          class="hidden anim-popup px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+          Photo modifiée !</div>
+
+        <div class="pt-2 flex justify-end gap-3">
+          <button type="button" onclick="closeAvatarModal()"
+            class="px-4 py-2 rounded-full text-[13px] font-medium text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
+          <button type="submit" class="btn-primary min-w-[120px]">
+            <span id="avatar-btn-text">Enregistrer</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Footer Copyright -->
+  <div class="fixed bottom-4 right-6 text-[11px] text-white/30 font-medium tracking-wide z-40">
+    © 2026 Glorious Trophée. Tous droits réservés. <span class="mx-1">•</span> <a href="/legal.html"
+      class="hover:text-white transition-colors cursor-pointer pointer-events-auto">Mentions légales</a>
+  </div>
+
+  <script>
+    // ── Protection XSS ──────────────────────────────────────────────────────
+    function escapeHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(str));
+      return div.innerHTML;
+    }
+
+    function sanitizeUrl(url) {
+      if (!url) return '';
+      try {
+        const u = new URL(url, location.origin);
+        if (u.protocol === 'https:' || u.protocol === 'http:') return url;
+        if (url.startsWith('/')) return url;
+        if (url.startsWith('data:image/')) return url;
+      } catch { }
+      return '';
+    }
+
+    const LEAGUE_COLORS = {
+      'Orbit': '#86868b', 'Horizon': '#4f7fff', 'Nebula': '#7c3aed', 'Pulsar': '#06b6d4',
+      'Zenith': '#10b981', 'Eclipse': '#f97316', 'Supernova': '#ef4444', 'Apex': '#f59e0b',
+      'Quasar': '#a855f7', 'Singularity': '#ff3b30',
+    };
+    const PLATFORM_ICON = { steam: '🎮', gog: '🌌', epic: '⚡' };
+    const RARITY_LABEL = { common: 'Commun', rare: 'Rare', epic: 'Épique', legendary: 'Légendaire', mythic: 'Mythique' };
+
+    function fmtPts(n) {
+      if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+      if (n >= 100_000) return Math.round(n / 1_000) + 'K';
+      if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+      return n.toString();
+    }
+    function fmtTime(min) {
+      if (!min) return '—';
+      const h = Math.round(min / 60);
+      return h >= 1 ? h + ' h' : min + ' min';
+    }
+    function avatarUrl(username, imageUrl) {
+      const sanitized = sanitizeUrl(imageUrl);
+      if (sanitized && sanitized.trim() !== '') return sanitized;
+
+      const text = (username || '?').substring(0, 2).toUpperCase();
+      let h = 0;
+      for (let i = 0; i < username.length; i++) h = (h * 31 + username.charCodeAt(i)) & 0xffff;
+
+      // Création d'un dégradé harmonieux
+      const hue1 = h % 360;
+      const hue2 = (hue1 + 40) % 360; // Teinte adjacente pour l'harmonie
+
+      const color1 = `hsl(${hue1}, 70%, 55%)`;
+      const color2 = `hsl(${hue2}, 70%, 45%)`;
+
+      return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+        <defs>
+          <linearGradient id="g_${h}" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="${encodeURIComponent(color1)}" />
+            <stop offset="100%" stop-color="${encodeURIComponent(color2)}" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="100" height="100" fill="url(%23g_${h})"/>
+        <text x="50" y="50" dominant-baseline="central" text-anchor="middle" font-family="'Nunito', 'Quicksand', 'Segoe UI Rounded', sans-serif" font-size="42" font-weight="700" letter-spacing="1" fill="%23ffffff">${text}</text>
+      </svg>`;
+    }
+    function leagueBadge(league) {
+      const c = LEAGUE_COLORS[league] || '#86868b';
+      return `<span class="text-[11px] font-mono px-2 py-0.5 rounded border" style="color:${c};border-color:${c}40;background:${c}14">${escapeHtml(league)}</span>`;
+    }
+    function memberSince(iso) {
+      return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    function rankRing(rank) {
+      if (rank === 1) return 'avatar-ring-1';
+      if (rank === 2) return 'avatar-ring-2';
+      if (rank === 3) return 'avatar-ring-3';
+      return 'avatar-ring-d';
+    }
+
+    function renderHeader(d) {
+      const ring = rankRing(d.rank);
+      const rankBadge = d.rank > 0
+        ? `<span class="num text-[13px] text-subtle font-semibold">#${d.rank}</span>` : '';
+
+      const isMe = localStorage.getItem('auth_user') === d.username;
+      const settingsBtn = isMe
+        ? `<button onclick="openSettings()" class="text-[13px] font-medium text-white/90 hover:text-white px-3 py-1 rounded bg-white/10 border border-white/20 hover:bg-white/20 transition-colors flex items-center gap-1.5 ml-2 mt-2 sm:mt-0">
+             <i data-lucide="settings" class="w-3.5 h-3.5"></i> Réglages
+           </button>`
+        : '';
+
+      const imgClass = isMe ? "cursor-pointer group-hover:opacity-50 transition-opacity" : "";
+      const imgClick = isMe ? `onclick="openAvatarModal()"` : "";
+      const imgOverlay = isMe ? `<div class="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer pointer-events-none">
+          <i data-lucide="camera" class="w-8 h-8 text-white/80"></i>
+        </div>` : "";
+
+      const safeUsername = escapeHtml(d.username);
+      const safeDisplayName = escapeHtml(d.display_name || d.username);
+      const safeAvatarUrl = escapeHtml(avatarUrl(d.username, d.profile_image_url));
+      const safeTitle = escapeHtml(d.active_title);
+
+      document.getElementById('ph-header').innerHTML = `
+        <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+          <div class="relative shrink-0 group" ${imgClick} title="${isMe ? 'Modifier la photo' : ''}">
+            <img src="${safeAvatarUrl}"
+                 alt="${safeUsername}"
+                 class="w-24 h-24 rounded-full object-cover ${ring} ${imgClass}"
+                 onerror="this.onerror=null;this.src='https://i.pravatar.cc/150?img=1'">
+            ${imgOverlay}
+          </div>
+          <div class="flex-1 text-center sm:text-left">
+            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-1">
+              <h1 class="text-[22px] font-semibold text-white">${safeDisplayName}</h1>
+              ${rankBadge}
+            </div>
+            <div class="text-[13px] text-subtle mb-3">@${safeUsername}</div>
+            <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              ${leagueBadge(d.league)}
+              <span class="text-[12px] text-subtle px-2 py-0.5 rounded bg-white/5 border border-white/5 cursor-default">${safeTitle}</span>
+              ${settingsBtn}
+            </div>
+            <div class="text-[12px] text-subtle mt-3">Membre depuis ${memberSince(d.member_since)}</div>
+          </div>
+        </div>`;
+    }
+
+    function renderStats(d) {
+      const stats = [
+        { label: 'Score Glorious', value: fmtPts(d.total_points), icon: 'zap', color: 'text-amber-400' },
+        { label: 'Succès', value: d.total_achievements.toLocaleString('fr-FR'), icon: 'award', color: 'text-brand' },
+        { label: 'Complétion', value: d.completion_avg.toFixed(1) + '%', icon: 'bar-chart-2', color: 'text-emerald-400' },
+        { label: 'Classement', value: d.rank > 0 ? '#' + d.rank : '—', icon: 'trophy', color: 'text-purple-400' },
+      ];
+      document.getElementById('ph-stats').innerHTML = stats.map(s => `
+        <div class="card p-5 flex flex-col gap-2">
+          <i data-lucide="${s.icon}" class="w-4 h-4 ${s.color}"></i>
+          <div class="num text-[22px] font-bold text-white">${s.value}</div>
+          <div class="text-[11px] text-subtle uppercase tracking-wider">${s.label}</div>
+        </div>`).join('');
+    }
+
+    function renderPlatforms(platforms) {
+      const el = document.getElementById('ph-platforms');
+      const header = `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
+        <i data-lucide="link" class="w-4 h-4 text-subtle"></i> Plateformes connectées
+      </h2>`;
+      if (!platforms.length) {
+        el.innerHTML = header + `<div class="flex flex-col items-center justify-center py-8 gap-2 text-subtle text-[13px]">
+          <i data-lucide="unlink" class="w-7 h-7 opacity-30"></i>Aucune plateforme connectée</div>`;
+        return;
+      }
+      el.innerHTML = header + platforms.map(p => `
+        <div class="flex items-center gap-3 py-3 border-b border-white/5 last:border-0">
+          <span class="text-xl">${PLATFORM_ICON[p.platform] || '🎮'}</span>
+          <div>
+            <div class="text-[14px] font-medium text-white capitalize">${escapeHtml(p.platform)}</div>
+            ${p.platform_username ? `<div class="text-[12px] text-subtle">${escapeHtml(p.platform_username)}</div>` : ''}
+          </div>
+          <div class="ml-auto text-[11px] text-subtle">${new Date(p.connected_at).toLocaleDateString('fr-FR')}</div>
+        </div>`).join('');
+    }
+
+    function renderTitleCard(d) {
+      const lc = LEAGUE_COLORS[d.league] || '#86868b';
+      document.getElementById('ph-title').innerHTML = `
+        <h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
+          <i data-lucide="medal" class="w-4 h-4 text-subtle"></i> Titre actif
+        </h2>
+        <div class="flex flex-col items-center justify-center py-4 gap-3">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
+               style="background:${lc}18;border:1px solid ${lc}30">🏆</div>
+          <div class="text-[16px] font-semibold text-white text-center">${escapeHtml(d.active_title)}</div>
+          ${leagueBadge(d.league)}
+          <div class="text-[12px] text-subtle text-center">${fmtPts(d.total_points)} points · Ligue ${escapeHtml(d.league)}</div>
+        </div>`;
+    }
+
+    function renderGames(games) {
+      const el = document.getElementById('ph-games');
+      const header = `<h2 class="text-[13px] font-semibold text-white mb-5 flex items-center gap-2">
+        <i data-lucide="gamepad-2" class="w-4 h-4 text-subtle"></i> Bibliothèque de jeux
+        ${games.length ? `<span class="ml-auto text-subtle font-normal">${games.length} jeu${games.length > 1 ? 'x' : ''}</span>` : ''}
+      </h2>`;
+      if (!games.length) {
+        el.innerHTML = `<div class="card p-6">${header}
+          <div class="flex flex-col items-center justify-center py-10 gap-2 text-subtle text-[13px]">
+            <i data-lucide="inbox" class="w-8 h-8 opacity-30"></i>Aucun jeu synchronisé
+          </div></div>`;
+        return;
+      }
+      const cards = games.map(g => {
+        const pct = g.completion_pct.toFixed(0);
+        const safeCoverUrl = sanitizeUrl(g.cover_image_url);
+        const cover = safeCoverUrl
+          ? `<img src="${escapeHtml(safeCoverUrl)}" class="w-full h-full object-cover" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'flex items-center justify-center w-full h-full text-3xl\\'>🎮</div>'">`
+          : `<div class="flex items-center justify-center w-full h-full text-3xl">🎮</div>`;
+        return `<div class="card overflow-hidden hover:scale-[1.02] transition-transform">
+          <div class="h-28 bg-white/5 overflow-hidden">${cover}</div>
+          <div class="p-3">
+            <div class="text-[13px] font-medium text-white truncate mb-2">${escapeHtml(g.title)}</div>
+            <div class="flex items-center justify-between text-[11px] text-subtle mb-1.5">
+              <span>${g.achievements_unlocked}/${g.achievements_total}</span><span>${pct}%</span>
+            </div>
+            <div class="h-1 bg-black rounded-full overflow-hidden border border-white/5">
+              <div class="h-full rounded-full bg-brand" style="width:${pct}%"></div>
+            </div>
+            <div class="mt-2 text-[11px] text-subtle">${fmtTime(g.playtime_minutes)}</div>
+          </div>
+        </div>`;
+      }).join('');
+      el.innerHTML = `<div class="card p-6">${header}<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">${cards}</div></div>`;
+    }
+
+    function renderAchievements(list) {
+      const el = document.getElementById('ph-achievements');
+      const header = `<h2 class="text-[13px] font-semibold text-white mb-2 flex items-center gap-2">
+        <i data-lucide="award" class="w-4 h-4 text-subtle"></i> Succès récents
+      </h2>`;
+      if (!list.length) {
+        el.innerHTML = `<div class="card p-6">${header}
+          <div class="flex flex-col items-center justify-center py-10 gap-2 text-subtle text-[13px]">
+            <i data-lucide="lock" class="w-8 h-8 opacity-30"></i>Aucun succès débloqué
+          </div></div>`;
+        return;
+      }
+      const rows = list.map(a => {
+        const dt = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString('fr-FR') : '—';
+        return `<div class="flex items-center gap-4 py-3.5 border-b border-white/5 last:border-0">
+          <div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-lg shrink-0">🏅</div>
+          <div class="flex-1 min-w-0">
+            <div class="text-[14px] font-medium text-white truncate">${escapeHtml(a.name)}</div>
+            <div class="text-[12px] text-subtle truncate">${escapeHtml(a.game_title)}${a.description ? ' · ' + escapeHtml(a.description) : ''}</div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-[11px] rarity-${a.rarity} font-medium">${RARITY_LABEL[a.rarity] || a.rarity}</div>
+            <div class="text-[11px] text-subtle num">+${a.points} pts</div>
+            <div class="text-[11px] text-subtle/60">${dt}</div>
+          </div>
+        </div>`;
+      }).join('');
+      el.innerHTML = `<div class="card p-6">${header}${rows}</div>`;
+    }
+
+    function logout() {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      location.href = '/index.html';
+    }
+
+    // ── Settings Modal ────────────────────────────────────────────────────────
+
+    function openSettings() {
+      const modal = document.getElementById('settings-modal');
+      const inner = modal.querySelector('.card');
+      const errorDiv = document.getElementById('settings-err');
+      const successDiv = document.getElementById('settings-success');
+      const nameInput = document.getElementById('settings-display-name');
+
+      errorDiv.classList.add('hidden');
+      successDiv.classList.add('hidden');
+
+      const currentName = document.querySelector('#ph-header h1')?.textContent;
+      if (currentName) {
+        nameInput.value = currentName;
+      }
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        inner.classList.remove('scale-95');
+      }, 10);
+
+      nameInput.focus();
+    }
+
+    function closeSettings() {
+      const modal = document.getElementById('settings-modal');
+      const inner = modal.querySelector('.card');
+
+      modal.classList.add('opacity-0');
+      inner.classList.add('scale-95');
+
+      setTimeout(() => {
+        modal.classList.add('hidden');
+      }, 300);
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const errorDiv = document.getElementById('settings-err');
+      const successDiv = document.getElementById('settings-success');
+      const btn = e.target.querySelector('button[type="submit"]');
+      const newName = document.getElementById('settings-display-name').value.trim();
+
+      errorDiv.classList.add('hidden');
+      successDiv.classList.add('hidden');
+
+      if (newName.length < 2 || newName.length > 15) {
+        errorDiv.textContent = "Le nom doit contenir entre 2 et 15 caractères.";
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Enregistrement...';
+      btn.disabled = true;
+
+      try {
+        const payload = { display_name: newName };
+
+        const res = await fetch('/api/users/me', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Erreur lors de la mise à jour.');
+        }
+
+        successDiv.classList.remove('hidden');
+        const h1 = document.querySelector('#ph-header h1');
+        if (h1) h1.textContent = newName || localStorage.getItem('auth_user');
+
+        setTimeout(() => closeSettings(), 1500);
+
+      } catch (err) {
+        errorDiv.textContent = err.message;
+        errorDiv.classList.remove('hidden');
+      } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        lucide.createIcons();
+      }
+    }
+
+    // ── Avatar Modal ──────────────────────────────────────────────────────────
+
+    function openAvatarModal() {
+      const modal = document.getElementById('avatar-modal');
+      const inner = modal.querySelector('.card');
+      const errorDiv = document.getElementById('avatar-err');
+      const successDiv = document.getElementById('avatar-success');
+      const fileInput = document.getElementById('avatar-file');
+
+      errorDiv.classList.add('hidden');
+      successDiv.classList.add('hidden');
+
+      // Reset file input
+      document.getElementById('avatar-file-name').textContent = 'Sélectionner un fichier (20 Mo max)';
+      fileInput.value = '';
+      fileInput.dataset.cleared = 'false';
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        inner.classList.remove('scale-95');
+      }, 10);
+    }
+
+    function closeAvatarModal() {
+      const modal = document.getElementById('avatar-modal');
+      const inner = modal.querySelector('.card');
+
+      modal.classList.add('opacity-0');
+      inner.classList.add('scale-95');
+
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        document.getElementById('avatar-file-name').textContent = 'Sélectionner un fichier (20 Mo max)';
+        document.getElementById('avatar-file').value = '';
+        document.getElementById('avatar-file').dataset.cleared = 'false';
+      }, 300);
+    }
+
+    function handleAvatarFileSelect(e) {
+      const file = e.target.files[0];
+      const nameEl = document.getElementById('avatar-file-name');
+      const fileInput = document.getElementById('avatar-file');
+      const errorDiv = document.getElementById('avatar-err');
+
+      fileInput.dataset.cleared = 'false';
+
+      if (file) {
+        const MAX_SIZE = 20 * 1024 * 1024; // 20 Mo
+        if (file.size > MAX_SIZE) {
+          errorDiv.textContent = 'Fichier trop volumineux (20 Mo max).';
+          errorDiv.classList.remove('hidden');
+          fileInput.value = '';
+          nameEl.textContent = 'Sélectionner un fichier (20 Mo max)';
+          return;
+        }
+        errorDiv.classList.add('hidden');
+        let name = file.name;
+        if (name.length > 20) name = name.substring(0, 17) + '...';
+        nameEl.textContent = name;
+      } else {
+        nameEl.textContent = 'Sélectionner un fichier (20 Mo max)';
+      }
+    }
+
+    async function saveAvatar(e) {
+      e.preventDefault();
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const errorDiv = document.getElementById('avatar-err');
+      const successDiv = document.getElementById('avatar-success');
+      const btn = e.target.querySelector('button[type="submit"]');
+
+      const fileInput = document.getElementById('avatar-file');
+      const file = fileInput.files[0];
+      const isCleared = fileInput.dataset.cleared === 'true';
+
+      // Si pas de fichier et pas cliqué sur 'retirer', on ne fait rien
+      if (!file && !isCleared) {
+        closeAvatarModal();
+        return;
+      }
+
+      errorDiv.classList.add('hidden');
+      successDiv.classList.add('hidden');
+
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Enregistrement...';
+      btn.disabled = true;
+
+      try {
+        let finalAvatarUrl = undefined;
+
+        if (file) {
+          const formData = new FormData();
+          formData.append('avatar', file);
+
+          const uploadRes = await fetch('/api/users/me/avatar', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+          });
+
+          if (!uploadRes.ok) {
+            const data = await uploadRes.json().catch(() => ({}));
+            throw new Error(data.error || "Erreur lors de l'envoi de l'image.");
+          }
+          const uploadData = await uploadRes.json();
+          finalAvatarUrl = uploadData.profile_image_url;
+        } else if (isCleared) {
+          finalAvatarUrl = '';
+        }
+
+        if (finalAvatarUrl !== undefined) {
+          const payload = { profile_image_url: finalAvatarUrl };
+
+          const res = await fetch('/api/users/me', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Erreur lors de la mise à jour.');
+          }
+
+          successDiv.classList.remove('hidden');
+
+          const img = document.querySelector('#ph-header img');
+          if (img) {
+            if (finalAvatarUrl !== '') {
+              img.src = finalAvatarUrl;
+            } else {
+              const authUser = localStorage.getItem('auth_user');
+              img.src = avatarUrl(authUser, '');
+            }
+          }
+        }
+
+        setTimeout(() => closeAvatarModal(), 1500);
+
+      } catch (err) {
+        errorDiv.textContent = err.message;
+        errorDiv.classList.remove('hidden');
+      } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        lucide.createIcons();
+      }
+    }
+
+    // ── Profile Loading ───────────────────────────────────────────────────────
+
+    async function loadProfile() {
+      const token = localStorage.getItem('auth_token');
+      const authUser = localStorage.getItem('auth_user');
+
+      // Mise à jour nav
+      if (token && authUser) {
+        const monEspace = document.getElementById('nav-mon-espace');
+        if (monEspace) monEspace.classList.remove('auth-hidden');
+
+        const loginBtn = document.getElementById('nav-login');
+        if (loginBtn) loginBtn.classList.add('hidden');
+
+        const logoutBtn = document.getElementById('nav-logout');
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+      }
+
+      let username = new URLSearchParams(window.location.search).get('u');
+
+      // Pas de paramètre → profil propre si connecté
+      if (!username) {
+        if (!token) {
+          location.href = '/login.html';
+          return;
+        }
+        try {
+          const res = await fetch('/api/auth/me', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              // Token invalide ou expiré → déconnexion
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('auth_user');
+              location.href = '/login.html';
+            } else {
+              // Erreur serveur (502, 500…) → ne pas déconnecter, afficher l'erreur
+              document.getElementById('profile-loading').classList.add('hidden');
+              const e = document.getElementById('profile-error');
+              e.classList.remove('hidden'); e.classList.add('flex');
+              document.getElementById('error-msg').textContent = 'Serveur indisponible. Veuillez réessayer.';
+              lucide.createIcons();
+            }
+            return;
+          }
+          const me = await res.json();
+          // Rediriger vers son propre profil public
+          location.replace('/profile.html?u=' + encodeURIComponent(me.username));
+        } catch {
+          // Erreur réseau → ne pas rediriger vers /login (évite la boucle infinie)
+          document.getElementById('profile-loading').classList.add('hidden');
+          const e = document.getElementById('profile-error');
+          e.classList.remove('hidden'); e.classList.add('flex');
+          document.getElementById('error-msg').textContent = 'Impossible de joindre le serveur. Vérifiez votre connexion.';
+          lucide.createIcons();
+        }
+        return;
+      }
+      document.title = (username || 'Profil').replace(/[<>]/g, '') + ' — Glorious Trophée';
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(username)}`);
+        if (res.status === 404) throw new Error('404');
+        if (!res.ok) throw new Error('err');
+        const d = await res.json();
+
+        document.getElementById('profile-loading').classList.add('hidden');
+        const c = document.getElementById('profile-content');
+        c.classList.remove('hidden'); c.classList.add('flex');
+
+        renderHeader(d);
+        renderStats(d);
+        renderPlatforms(d.platforms);
+        renderTitleCard(d);
+        renderGames(d.games);
+        renderAchievements(d.recent_achievements);
+        lucide.createIcons();
+      } catch (err) {
+        document.getElementById('profile-loading').classList.add('hidden');
+        const e = document.getElementById('profile-error');
+        e.classList.remove('hidden'); e.classList.add('flex');
+        document.getElementById('error-msg').textContent =
+          err.message === '404' ? `Joueur "${username}" introuvable.` : 'Impossible de charger le profil.';
+        lucide.createIcons();
+      }
+    }
+
+    // ── Custom HTML5 Validation Tooltips ─────────────────────────────────
+    document.querySelectorAll('form').forEach(form => {
+      form.addEventListener('invalid', (e) => {
+        e.preventDefault();
+        showCustomError(e.target, e.target.validationMessage);
+      }, true);
+      form.addEventListener('input', (e) => hideCustomError(e.target));
+      form.addEventListener('change', (e) => hideCustomError(e.target));
+    });
+
+    function getValidationTarget(input) {
+      if (input.parentElement.classList.contains('relative') || input.parentElement.tagName === 'LABEL') {
+        return input.parentElement;
+      }
+      return input;
+    }
+
+    function showCustomError(input, msg) {
+      hideCustomError(input);
+      const err = document.createElement('div');
+      err.className = 'custom-validation-popup anim-popup mt-2.5 px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 text-[12px] font-medium leading-relaxed shadow-sm w-full flex gap-2.5 items-start z-10 relative';
+      err.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5 text-red-400"></i><span class="opacity-90">${msg}</span>`;
+      getValidationTarget(input).insertAdjacentElement('afterend', err);
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function hideCustomError(input) {
+      const target = getValidationTarget(input);
+      if (target.nextElementSibling && target.nextElementSibling.classList.contains('custom-validation-popup')) {
+        target.nextElementSibling.remove();
+      }
+    }
+
+    lucide.createIcons();
+    loadProfile();
+  </script>
+</body>
+
+</html>

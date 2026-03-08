@@ -1,0 +1,14 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "GloriousTrophée — Dev",
+            "Group": "Servers",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "glorioustrophee",
+            "Username": "devuser",
+            "SSLMode": "prefer",
+            "PassFile": "/pgpassfile"
+        }
+    }
+}

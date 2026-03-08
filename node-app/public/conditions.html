@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conditions d'Utilisation — Glorious Trophée</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#2997ff',
+                        surface: '#111111',
+                        'surface-hover': '#161616',
+                        subtle: '#86868b',
+                        border: 'rgba(255,255,255,0.06)'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        .auth-hidden {
+            display: none !important;
+        }
+
+        body {
+            background-color: #000;
+            color: #f5f5f7;
+            -webkit-font-smoothing: antialiased;
+            letter-spacing: -0.011em;
+            min-height: 100vh;
+        }
+
+        .nav-glass {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .stagger-item {
+            opacity: 0;
+            transform: translateY(15px);
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: #111111;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+        }
+
+        .legal-content h2 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: white;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .legal-content h3 {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #e5e5e5;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .legal-content p,
+        .legal-content li {
+            font-size: 0.875rem;
+            color: var(--subtle);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            text-align: justify;
+        }
+
+        .legal-content ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-bottom: 1rem;
+        }
+
+        .legal-content ul li {
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .legal-content ul li::before {
+            content: "•";
+            color: var(--brand);
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .alert-box {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1.5rem 0;
+        }
+
+        .alert-box p {
+            color: #fca5a5;
+            margin: 0;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body class="pb-16 flex flex-col">
+
+    <!-- Nav -->
+    <nav class="fixed top-0 w-full z-50 nav-glass">
+        <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+            <a href="/index.html"
+                class="flex items-center gap-3 font-medium text-[14px] text-subtle hover:text-white transition-colors">
+                <div
+                    class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/10">
+                    <i data-lucide="triangle" class="w-3 h-3 text-white"></i>
+                </div>
+                Glorious Trophée
+            </a>
+
+            <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
+                <a href="/index.html" class="hover:text-white transition-colors hidden sm:block">Panthéon</a>
+                <a id="nav-mon-espace" href="/profile.html"
+                    class="hover:text-white transition-colors hidden sm:block auth-hidden">Mon Espace</a>
+                <a id="nav-login" href="/login.html"
+                    class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all border border-white/5 hover:scale-105 active:scale-95">Connexion</a>
+                <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]"
+                    onclick="logout()">Déconnexion</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-6 pt-32 pb-12 flex-grow w-full">
+
+        <div class="mb-10 stagger-item" style="animation-delay: 0.1s;">
+            <h1 class="text-3xl font-semibold tracking-tight text-white mb-2">Conditions d'Utilisation</h1>
+            <p class="text-[13px] text-subtle">Charte de bonne conduite du Panthéon</p>
+        </div>
+
+        <div class="card p-8 sm:p-10 stagger-item" style="animation-delay: 0.2s;">
+            <div class="legal-content">
+                <p>
+                    La plateforme Glorious Trophée a été conçue comme un espace sain de partage, de dépassement de soi
+                    et de célébration de l'art vidéoludique. En créant un compte, vous intégrez le Panthéon et
+                    reconnaissez accepter sans réserve la présente charte de bonne conduite.
+                </p>
+
+                <h2>1. Comportement et Respect de la Communauté</h2>
+                <p>
+                    Le Panthéon est visible publiquement. Tout compte affiché doit respecter les fondements de la
+                    décence et du respect d'autrui.
+                </p>
+                <ul>
+                    <li><strong>Pseudonymes :</strong> Il est strictement interdit d'utiliser un pseudonyme insultant,
+                        haineux, discriminatoire, ou usurpant l'identité d'un autre joueur, d'une personnalité ou d'une
+                        entreprise.</li>
+                    <li><strong>Avatars de profil :</strong> Sont formellement interdites les images à caractère
+                        explicite, pornographique, extrêmement violent, faisant l'apologie de crimes ou incitant à la
+                        haine. L'image de profil doit être "Safe For Work" (SFW).</li>
+                </ul>
+
+                <h2>2. Intégrité Compétitive et Triche</h2>
+                <p>
+                    Glorious Trophée valorise l'effort authentique. Le classement et les scores perdent tout leur sens
+                    si les données sont manipulées.
+                </p>
+                <ul>
+                    <li><strong>Logiciels tiers ("Unlockers") :</strong> L'utilisation d'outils automatiques pour
+                        débloquer artificiellement des succès (ex: Steam Achievement Manager) est proscrite des
+                        plateformes reconnues et n'a pas sa place ici.</li>
+                    <li><strong>Exploits de sauvegarde :</strong> Le téléchargement et l'utilisation de fichiers de
+                        sauvegarde (Save-Scumming d'autres joueurs) dans le seul but de valider des trophées
+                        instantanément est considéré comme de la triche.</li>
+                    <li><strong>Jeux "Spam-Trophées" :</strong> L'ajout massif de jeux développés uniquement pour
+                        contourner les systèmes de trophées (jeux terminables en 30 secondes pour 100 succès) n'est pas
+                        interdit explicitement par les réseaux, mais l'algorithme Glorious réduit sévèrement le score
+                        généré par ce type de titres pour maintenir le prestige du classement.</li>
+                </ul>
+
+                <h2>3. Système de Sanctions ("Le Bannissement du Panthéon")</h2>
+
+                <p>En tant qu'éditeur de la plateforme, je me réserve le droit absolu et unilatéral d'appliquer des
+                    sanctions sans notification préalable aux utilisateurs enfreignant ces règles. Les sanctions ne sont
+                    pas automatisées mais appliquées après signalement ou modération manuelle.</p>
+
+                <h3>Gradation ou application directe :</h3>
+                <ul>
+                    <li><strong>Avertissement ou Réinitialisation :</strong> Retrait forcé de l'avatar inconvenant ou
+                        réinitialisation d'un pseudonyme irrespectueux vers un nom générique (ex: "Joueur_Glorious_42").
+                    </li>
+                    <li><strong>Exclusion du Classement ("Shadowban") :</strong> Votre profil reste accessible via un
+                        lien direct pour votre consultation personnelle, mais vous n'apparaissez plus dans le Panthéon
+                        mondial ni dans les fonctions de recherche. Cette sanction s'applique généralement aux profils
+                        sur lesquels une triche manifeste a été détectée.</li>
+                    <li><strong>Suppression et Bannissement définitif :</strong> Radition complète du compte et des
+                        données liées, et mise sur liste noire de l'adresse IP et/ou de l'identifiant Steam/PSN/Xbox,
+                        interdisant toute recréation de compte. Appliqué pour les comportements illégaux, les contenus à
+                        caractère sexuel explicite ou les tentatives de hacking des serveurs Glorious.</li>
+                </ul>
+
+                <div class="alert-box">
+                    <p><strong>Note :</strong> Ce projet étant développé par un indépendant sur son temps libre, il n'y
+                        a pas de centre d'appel ou de tribunal d'appel de modération. Les décisions prises concernant la
+                        propreté du classement et de l'affichage public sont finales.</p>
+                </div>
+
+                <h2>4. Signalement</h2>
+                <p>
+                    Pour maintenir la qualité du Panthéon, si vous apercevez un profil enfreignant manifestement les
+                    règles énumérées ci-dessus (contenu graphique, pseudo illégal, comptes massivement truqués ou hackés
+                    vis-à-vis des dates de déblocage des trophées), vous pouvez me le signaler à l'adresse fournie dans
+                    les Mentions Légales avec le lien du compte concerné.
+                </p>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Copyright -->
+    <div class="fixed bottom-4 right-6 text-[11px] text-white/30 font-medium tracking-wide z-40">
+        © 2026 Glorious Trophée. Tous droits réservés. <span class="mx-1">•</span> <a href="/legal.html"
+            class="hover:text-white transition-colors cursor-pointer pointer-events-auto">Mentions légales</a>
+    </div>
+
+    <script>
+        if (localStorage.getItem('auth_token')) {
+            document.getElementById('nav-mon-espace')?.classList.remove('auth-hidden');
+            document.getElementById('nav-login')?.classList.add('hidden');
+            document.getElementById('nav-logout')?.classList.remove('hidden');
+        }
+
+        function logout() {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            window.location.reload();
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

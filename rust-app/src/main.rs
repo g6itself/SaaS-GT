@@ -34,6 +34,15 @@ async fn main() -> std::io::Result<()> {
         let site_root = leptos_options.site_root.clone().to_string();
 
         App::new()
+            // En-tetes de securite
+            .wrap(
+                actix_web::middleware::DefaultHeaders::new()
+                    .add(("X-Content-Type-Options", "nosniff"))
+                    .add(("X-Frame-Options", "DENY"))
+                    .add(("X-XSS-Protection", "1; mode=block"))
+                    .add(("Referrer-Policy", "strict-origin-when-cross-origin"))
+                    .add(("Permissions-Policy", "camera=(), microphone=(), geolocation=()"))
+            )
             // Donnees partagees
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(leptos_options.to_owned()))
@@ -43,7 +52,9 @@ async fn main() -> std::io::Result<()> {
                     .configure(api::auth::configure)
                     .configure(api::platforms::configure)
                     .configure(api::games::configure)
-                    .configure(api::achievements::configure),
+                    .configure(api::achievements::configure)
+                    .configure(api::leaderboard::configure)
+                    .configure(api::users::configure),
             )
             // Fichiers statiques Leptos
             .service(Files::new("/pkg", format!("{site_root}/pkg")))
