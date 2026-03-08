@@ -2,6 +2,12 @@
 <html lang="fr" class="dark">
 
 <head>
+  <style>
+    html,
+    body {
+      background: #000 !important;
+    }
+  </style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Profil — Glorious Trophée</title>
@@ -12,6 +18,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="/transitions.css">
+  <script src="/transitions.js" defer></script>
   <script>
     tailwind.config = {
       theme: {
@@ -116,17 +124,13 @@
       color: #ef4444;
     }
 
-    ::-webkit-scrollbar {
-      width: 4px;
+    * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
 
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 4px;
+    *::-webkit-scrollbar {
+      display: none;
     }
 
     .animate-spin {
@@ -180,25 +184,25 @@
       transform: scale(0.98);
     }
 
-    @keyframes fadeInPopup {
-      from {
-        opacity: 0;
-        transform: translateY(-8px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    .dynamic-banner {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition: grid-template-rows 0.4s ease-out, opacity 0.4s ease-out;
     }
 
-    .anim-popup {
-      animation: fadeInPopup 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    .dynamic-banner.show {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+
+    .btn-add-game-trigger {
+      cursor: pointer;
     }
   </style>
 </head>
 
-<body class="pb-16">
+<body class="selection:bg-brand/30 selection:text-white h-[100dvh] overflow-hidden flex flex-col">
 
   <!-- Nav -->
   <nav class="fixed top-0 w-full z-50 nav-glass">
@@ -213,20 +217,19 @@
       </a>
       <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
         <a href="/index.html" class="hover:text-white transition-colors hidden sm:block">Panthéon</a>
-        <span id="nav-mon-espace" class="text-white font-semibold hidden sm:block cursor-default auth-hidden">Mon
-          Espace</span>
+        <a id="nav-mon-espace" href="/profile.html" class="auth-hidden hidden sm:block transition-colors">Mon Espace</a>
         <a id="nav-login" href="/login.html"
           class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all border border-white/5 hover:scale-105 active:scale-95">Connexion</a>
-        <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]"
-          onclick="logout()">Déconnexion</button>
+        <button id="nav-logout"
+          class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]">Déconnexion</button>
       </div>
     </div>
   </nav>
 
-  <main class="max-w-5xl mx-auto px-6 pt-24 pb-12">
+  <main class="w-full max-w-5xl mx-auto px-6 pt-24 relative z-10 flex-grow flex flex-col h-full overflow-hidden">
 
     <!-- Back -->
-    <div class="mb-8 stagger-item" style="animation-delay:0.05s">
+    <div class="mb-6 shrink-0 stagger-item w-full" style="animation-delay:0.05s">
       <a href="/index.html"
         class="inline-flex items-center gap-2 text-[13px] text-subtle hover:text-white transition-colors">
         <i data-lucide="arrow-left" class="w-4 h-4"></i>
@@ -234,81 +237,114 @@
       </a>
     </div>
 
-    <!-- Loading -->
-    <div id="profile-loading" class="flex flex-col items-center justify-center py-32 gap-4">
-      <div class="w-8 h-8 border-2 border-brand/30 border-t-brand rounded-full animate-spin"></div>
-      <span class="text-subtle text-[13px]">Chargement du profil…</span>
-    </div>
+    <!-- Scrollable Profile Container -->
+    <div class="flex-1 flex flex-col relative w-full mb-10 min-h-0">
+      <div id="profile-scroll-container" class="flex-1 overflow-y-auto pr-2 pb-16 pt-16"
+        style="mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);">
 
-    <!-- Error -->
-    <div id="profile-error" class="hidden flex-col items-center justify-center py-32 gap-4 text-subtle text-[13px]">
-      <i data-lucide="user-x" class="w-10 h-10 opacity-30"></i>
-      <span id="error-msg">Joueur introuvable.</span>
-      <a href="/index.html"
-        class="mt-2 px-4 py-1.5 rounded-full border border-white/10 text-white hover:bg-white/5 transition-colors text-[12px]">
-        Retour au classement
-      </a>
-    </div>
+        <!-- Loading -->
+        <div id="profile-loading" class="flex flex-col items-center justify-center py-32 gap-4">
+          <div class="w-8 h-8 border-2 border-brand/30 border-t-brand rounded-full animate-spin"></div>
+          <span class="text-subtle text-[13px]">Chargement du profil…</span>
+        </div>
 
-    <!-- Content -->
-    <div id="profile-content" class="hidden flex-col gap-8">
+        <!-- Error -->
+        <div id="profile-error" class="hidden flex-col items-center justify-center py-32 gap-4 text-subtle text-[13px]">
+          <i data-lucide="user-x" class="w-10 h-10 opacity-30"></i>
+          <span id="error-msg">Joueur introuvable.</span>
+          <a href="/index.html"
+            class="mt-2 px-4 py-1.5 rounded-full border border-white/10 text-white hover:bg-white/5 transition-colors text-[12px]">
+            Retour au classement
+          </a>
+        </div>
 
-      <!-- Header card -->
-      <div id="ph-header" class="card p-8 stagger-item" style="animation-delay:0.1s"></div>
+        <!-- Content -->
+        <div id="profile-content" class="hidden flex-col gap-8">
 
-      <!-- Stats grid -->
-      <div id="ph-stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 stagger-item" style="animation-delay:0.15s"></div>
+          <!-- Header card -->
+          <div id="ph-header" class="card p-8 stagger-item" style="animation-delay:0.1s"></div>
 
-      <!-- Platforms + Title -->
-      <div class="grid md:grid-cols-2 gap-4">
-        <div id="ph-platforms" class="card p-6 stagger-item" style="animation-delay:0.2s"></div>
-        <div id="ph-title" class="card p-6 stagger-item" style="animation-delay:0.25s"></div>
+          <!-- Stats grid -->
+          <div id="ph-stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3 stagger-item" style="animation-delay:0.15s">
+          </div>
+
+          <!-- Achievements and Games -->
+          <div class="grid lg:grid-cols-2 gap-4">
+            <!-- Achievements -->
+            <div id="ph-achievements" class="stagger-item" style="animation-delay:0.2s"></div>
+
+            <!-- Games -->
+            <div id="ph-games" class="stagger-item" style="animation-delay:0.25s"></div>
+          </div>
+
+        </div>
       </div>
-
-      <!-- Games -->
-      <div id="ph-games" class="stagger-item" style="animation-delay:0.3s"></div>
-
-      <!-- Achievements -->
-      <div id="ph-achievements" class="stagger-item" style="animation-delay:0.35s"></div>
-
     </div>
   </main>
 
-  <!-- Settings Modal (Hidden by default) -->
+  <!-- Settings Modal -->
   <div id="settings-modal"
     class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
     <div class="card w-full max-w-md p-6 transform scale-95 transition-transform duration-300 relative">
-      <button onclick="closeSettings()" class="absolute top-4 right-4 text-subtle hover:text-white transition-colors">
+      <button id="btn-close-settings-1" class="absolute top-4 right-4 text-subtle hover:text-white transition-colors">
         <i data-lucide="x" class="w-5 h-5"></i>
       </button>
 
-      <h2 class="text-[18px] font-semibold text-white mb-6 flex items-center gap-2">
-        <i data-lucide="settings" class="w-5 h-5 brand-text"></i>
-        Réglages du profil
+      <h2 class="text-[18px] font-semibold text-white mb-4 flex items-center gap-2">
+        <i data-lucide="settings" class="w-5 h-5 text-brand"></i>
+        Réglages
       </h2>
 
-      <form id="form-settings" onsubmit="saveSettings(event)" class="space-y-5">
-        <div>
-          <label class="block text-[13px] font-medium text-white/90 mb-3 ml-1">Nom d'affichage</label>
-          <input type="text" id="settings-display-name" class="input-clean" placeholder="Votre nom affiché"
-            autocomplete="off" required minlength="2" maxlength="15">
-        </div>
+      <!-- Tab navigation -->
+      <div class="flex border-b border-white/8 mb-5 gap-1">
+        <button id="tab-btn-profile"
+          class="px-3 py-2 text-[13px] font-medium text-white border-b-2 border-brand -mb-px transition-colors">Profil</button>
+        <button id="tab-btn-platforms"
+          class="px-3 py-2 text-[13px] font-medium text-subtle hover:text-white border-b-2 border-transparent -mb-px transition-colors">Plateformes</button>
+      </div>
 
-        <div id="settings-err"
-          class="hidden anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
-        </div>
-        <div id="settings-success"
-          class="hidden anim-popup px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
-          Profil mis à jour !</div>
+      <!-- Tab: Profil -->
+      <div id="settings-tab-profile">
+        <form id="form-settings" class="space-y-5">
+          <div>
+            <label class="block text-[13px] font-medium text-white/90 mb-3 ml-1">Nom d'affichage</label>
+            <input type="text" id="settings-display-name" class="input-clean" placeholder="Votre nom affiché"
+              autocomplete="off" required minlength="2" maxlength="15">
+          </div>
 
-        <div class="pt-2 flex justify-end gap-3">
-          <button type="button" onclick="closeSettings()"
-            class="px-4 py-2 rounded-full text-[13px] font-medium text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
-          <button type="submit" class="btn-primary min-w-[120px]">
-            <span id="settings-btn-text">Enregistrer</span>
-          </button>
+          <div id="settings-err-wrapper" class="dynamic-banner mt-6">
+            <div class="overflow-hidden">
+              <div id="settings-err"
+                class="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+              </div>
+            </div>
+          </div>
+          <div id="settings-success-wrapper" class="dynamic-banner mt-6">
+            <div class="overflow-hidden">
+              <div id="settings-success"
+                class="px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                Profil mis à jour !</div>
+            </div>
+          </div>
+
+          <div class="pt-2 flex justify-end gap-3">
+            <button type="button" id="btn-close-settings-2"
+              class="px-4 py-2 rounded-full text-[13px] font-medium text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
+            <button type="submit" class="btn-primary min-w-[120px]">
+              <span id="settings-btn-text">Enregistrer</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab: Plateformes -->
+      <div id="settings-tab-platforms" class="hidden">
+        <div id="settings-platforms-list">
+          <div class="flex items-center justify-center py-8">
+            <div class="w-5 h-5 border-2 border-brand/30 border-t-brand rounded-full animate-spin"></div>
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -316,8 +352,7 @@
   <div id="avatar-modal"
     class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
     <div class="card w-full max-w-md p-6 transform scale-95 transition-transform duration-300 relative">
-      <button onclick="closeAvatarModal()"
-        class="absolute top-4 right-4 text-subtle hover:text-white transition-colors">
+      <button id="btn-close-avatar-1" class="absolute top-4 right-4 text-subtle hover:text-white transition-colors">
         <i data-lucide="x" class="w-5 h-5"></i>
       </button>
 
@@ -326,7 +361,7 @@
         Photo de profil
       </h2>
 
-      <form id="form-avatar" onsubmit="saveAvatar(event)" class="space-y-5">
+      <form id="form-avatar" class="space-y-5">
         <div>
           <label class="block text-[13px] font-medium text-white/90 mb-1.5 ml-1">Format .jpeg/.png (64x64
             recommandé)</label>
@@ -335,28 +370,34 @@
               class="w-full cursor-pointer flex items-center justify-center gap-2 px-3 py-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-[13px] text-white/80">
               <i data-lucide="upload" class="w-5 h-5"></i>
               <span id="avatar-file-name">Sélectionner un fichier (20 Mo max)</span>
-              <input type="file" id="avatar-file" accept="image/png, image/jpeg, image/webp, image/gif" class="hidden"
-                onchange="handleAvatarFileSelect(event)">
+              <input type="file" id="avatar-file" accept="image/png, image/jpeg, image/webp, image/gif" class="hidden">
             </label>
             <div class="flex items-center justify-between px-1 mt-1">
               <p class="text-[11px] text-subtle/60">Sélectionnez une image ou retirez-la pour utiliser l'avatar par
                 défaut.</p>
-              <button type="button"
-                onclick="document.getElementById('avatar-file-name').textContent='Sélectionner un fichier (20 Mo max)'; document.getElementById('avatar-file').dataset.cleared='true'; document.getElementById('avatar-file').value='';"
+              <button type="button" id="btn-remove-avatar"
                 class="text-[11px] px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded transition-colors">Retirer</button>
             </div>
           </div>
         </div>
 
-        <div id="avatar-err"
-          class="hidden anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+        <div id="avatar-err-wrapper" class="dynamic-banner mt-6">
+          <div class="overflow-hidden">
+            <div id="avatar-err"
+              class="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+            </div>
+          </div>
         </div>
-        <div id="avatar-success"
-          class="hidden anim-popup px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
-          Photo modifiée !</div>
+        <div id="avatar-success-wrapper" class="dynamic-banner mt-6">
+          <div class="overflow-hidden">
+            <div id="avatar-success"
+              class="px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+              Photo modifiée !</div>
+          </div>
+        </div>
 
         <div class="pt-2 flex justify-end gap-3">
-          <button type="button" onclick="closeAvatarModal()"
+          <button type="button" id="btn-close-avatar-2"
             class="px-4 py-2 rounded-full text-[13px] font-medium text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
           <button type="submit" class="btn-primary min-w-[120px]">
             <span id="avatar-btn-text">Enregistrer</span>
@@ -364,6 +405,216 @@
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- Platform Connect Modal -->
+  <div id="platform-modal"
+    class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+    <div class="card w-full max-w-md p-6 transform scale-95 transition-transform duration-300 relative">
+      <button id="btn-close-platform-1" class="absolute top-4 right-4 text-subtle hover:text-white transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <h2 id="platform-modal-title" class="text-[18px] font-semibold text-white mb-5 flex items-center gap-2">
+        <i data-lucide="link" class="w-5 h-5 text-brand"></i>
+        Connecter une plateforme
+      </h2>
+
+      <!-- Bouton Steam OpenID (Steam seulement) -->
+      <div id="platform-steam-oauth" class="hidden mb-4">
+        <button type="button" id="btn-steam-openid"
+          class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-[#1b2838] hover:bg-[#2a475e] border border-white/10 text-white font-medium text-[14px] transition-colors">
+          <svg viewBox="0 0 24 24" class="w-5 h-5 fill-current shrink-0">
+            <path
+              d="M11.979 0C5.363 0 0 5.36 0 11.976c0 6.617 5.363 11.978 11.979 11.978 6.614 0 11.978-5.361 11.978-11.978C23.957 5.36 18.593 0 11.979 0zm7.143 11.025l-2.85 1.18c-.28-.215-.615-.365-.98-.423l1.838-4.526a4.295 4.295 0 011.992 3.769zm-4.706 2.394a2.49 2.49 0 01-1.391 3.203 2.502 2.502 0 01-3.218-1.385A2.49 2.49 0 0111.2 12a2.484 2.484 0 013.216 1.419zM4.686 16.79l2.846-4.045c.66.191 1.344.205 1.99.04l-2.585 3.674c-.538.765-1.554.912-2.275.33-.722-.584-.87-1.68-.376-2.428l1.419-2.148c-.5.492-.81 1.188-.81 1.96 0 1.516 1.233 2.747 2.748 2.747a2.766 2.766 0 001.077-.217L3.43 21.09c-1.428-1.89-2.274-4.223-2.274-6.735 0-3.328 1.442-6.319 3.738-8.414l5.65 5.65-5.858 5.199zm3.8-9.088c-.911 0-1.652.741-1.652 1.652 0 .91.741 1.65 1.652 1.65s1.65-.74 1.65-1.65c0-.911-.74-1.652-1.65-1.652zm10.74 3.093c-.02-.345-.084-.68-.186-1.002l-1.921 4.735c-.172.936-.78 1.706-1.597 2.143l3.3 3.328a11.986 11.986 0 00.404-9.204z" />
+          </svg>
+          Se connecter via Steam
+        </button>
+        <!-- Séparateur -->
+        <div class="flex items-center gap-3 my-4 text-[11px] text-subtle/50">
+          <div class="flex-1 h-px bg-white/8"></div>
+          ou entrer manuellement
+          <div class="flex-1 h-px bg-white/8"></div>
+        </div>
+      </div>
+
+      <form id="form-platform" class="space-y-4">
+        <!-- SteamID / ID plateforme -->
+        <div id="platform-user-id-section">
+          <label id="platform-user-id-label" class="block text-[13px] font-medium text-white/90 mb-1.5 ml-1">Identifiant
+            de plateforme</label>
+          <input type="text" id="platform-user-id" class="input-clean" placeholder="" autocomplete="off">
+          <p class="text-[11px] text-subtle/60 mt-1.5 ml-1" id="platform-user-id-hint">
+            Votre identifiant unique sur la plateforme.
+          </p>
+        </div>
+
+        <!-- Clé API optionnelle (Steam seulement) -->
+        <div id="platform-apikey-section" class="hidden">
+          <label class="block text-[13px] font-medium text-white/90 mb-1.5 ml-1">
+            Clé API Steam
+            <span class="text-subtle/50 font-normal ml-1">(optionnelle)</span>
+          </label>
+          <input type="text" id="platform-apikey" class="input-clean font-mono text-[12px]"
+            placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" autocomplete="off" maxlength="64">
+          <p class="text-[11px] text-subtle/60 mt-1.5 ml-1">
+            Nécessaire si votre bibliothèque Steam est privée.
+            <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener noreferrer"
+              class="text-brand hover:underline">Obtenir ma clé</a>
+          </p>
+        </div>
+
+        <div id="platform-err-wrapper" class="dynamic-banner">
+          <div class="overflow-hidden">
+            <div id="platform-err"
+              class="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+            </div>
+          </div>
+        </div>
+        <div id="platform-success-wrapper" class="dynamic-banner">
+          <div class="overflow-hidden">
+            <div id="platform-success"
+              class="px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+              Compte connect\u00e9 avec succ\u00e8s !</div>
+          </div>
+        </div>
+
+        <div id="platform-submit-row" class="pt-2 flex justify-end gap-3">
+          <button type="button" id="btn-close-platform-2"
+            class="px-4 py-2 rounded-full text-[13px] font-medium text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
+          <button type="submit" class="btn-primary min-w-[120px]">
+            <span id="platform-btn-text">Connecter</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Retro Game Modal -->
+  <div id="add-game-modal"
+    class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+    <div
+      class="card w-full max-w-7xl h-[920px] flex flex-col transform scale-95 transition-transform duration-300 relative overflow-hidden">
+      <button id="btn-close-retro-modal"
+        class="absolute top-4 right-4 text-subtle hover:text-white transition-colors z-10">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex flex-1 min-h-0">
+        <!-- Sidebar: Consoles (20%) -->
+        <div class="w-[20%] border-r border-white/5 bg-white/[0.02] p-6 flex flex-col gap-6">
+          <h2 class="text-[16px] font-semibold text-white flex items-center gap-2 shrink-0">
+            <i data-lucide="cpu" class="w-5 h-5 text-brand"></i>
+            Retro Gaming
+          </h2>
+
+          <div id="retro-consoles-list" class="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+            <!-- Consoles injected by JS -->
+          </div>
+        </div>
+
+        <!-- Main Workspace: Catalog & Form (80%) -->
+        <div class="flex-1 p-10 flex flex-col gap-6 bg-black/20 relative">
+          <div id="retro-catalog-header" class="flex items-center justify-between mb-2">
+            <h3 id="retro-catalog-title" class="text-[14px] font-medium text-subtle uppercase tracking-wider">Catalogue
+            </h3>
+            <div id="retro-search-wrapper" class="flex-1 max-w-[240px] px-4 hidden">
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtle"></i>
+                <input type="text" id="retro-catalog-search"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl py-1.5 pl-9 pr-3 text-[12px] text-white placeholder-subtle focus:border-brand/40 outline-none transition-all"
+                  placeholder="Rechercher...">
+              </div>
+            </div>
+            <button id="btn-back-to-catalog"
+              class="hidden text-[12px] text-brand hover:underline flex items-center gap-1.5">
+              <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Retour au catalogue
+            </button>
+          </div>
+
+          <div class="relative flex-1 min-h-0 flex flex-col group/scroll">
+            <!-- Fade Overlays -->
+            <div
+              class="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-[#161616] to-transparent z-10 pointer-events-none transition-opacity duration-500">
+            </div>
+            <div
+              class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#161616] to-transparent z-10 pointer-events-none transition-opacity duration-500">
+            </div>
+
+            <div id="retro-workspace-container" class="flex-1 overflow-y-auto pr-2 pt-10 pb-16 custom-scrollbar">
+              <!-- Catalog Grid (4x3) -->
+              <div id="retro-catalog-grid" class="grid grid-cols-4 gap-8">
+                <!-- Games injected by JS -->
+              </div>
+
+              <!-- Game Details Fiche -->
+              <div id="retro-game-form" class="hidden space-y-8">
+                <div class="flex gap-8">
+                  <!-- Jacket (Poster) -->
+                  <div class="w-72 shrink-0">
+                    <div
+                      class="aspect-[2/3] rounded-2xl bg-gradient-to-br from-brand/20 to-brand/5 border border-white/10 flex flex-col items-center justify-center relative overflow-hidden group shadow-2xl">
+                      <div id="retro-form-icon"
+                        class="text-5xl drop-shadow-lg z-10 transition-transform group-hover:scale-110 duration-500">👾
+                      </div>
+                      <div class="absolute inset-0 bg-brand/5 opacity-50"></div>
+                      <div class="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent">
+                      </div>
+                    </div>
+                    <div id="retro-cover-regions" class="mt-2 flex flex-wrap gap-1 justify-center"></div>
+                  </div>
+
+                  <div class="flex-1 min-w-0 pt-4">
+                    <h3 id="retro-form-title" class="text-[40px] font-bold text-white mb-4 leading-tight">Détails du jeu
+                    </h3>
+                    <div class="flex items-center gap-5 mb-8">
+                      <span id="retro-form-console-name"
+                        class="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-[16px] font-semibold text-brand uppercase tracking-wider">NES
+                        Edition</span>
+                      <span class="w-2 h-2 rounded-full bg-white/20"></span>
+                      <span class="text-[18px] text-subtle">Catalogue Officiel</span>
+                    </div>
+                    <p id="retro-form-desc"
+                      class="text-[18px] text-subtle leading-relaxed line-clamp-6 italic opacity-80">
+                      Chargement de la description...
+                    </p>
+                  </div>
+                </div>
+
+                <div class="h-px bg-white/5"></div>
+
+                <form id="form-add-retro-game" class="space-y-6 max-w-lg">
+                  <!-- Inputs removed as per user request -->
+
+                  <div id="retro-add-err-wrapper" class="dynamic-banner mt-2">
+                    <div class="overflow-hidden">
+                      <div id="retro-add-err"
+                        class="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" id="btn-close-retro-2"
+                      class="px-5 py-2.5 rounded-full text-[13px] font-medium text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
+                    <button type="submit" class="btn-primary min-w-[140px]">
+                      <span id="retro-save-btn-text">Ajouter au Panthéon</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div id="retro-catalog-empty"
+                class="flex flex-col items-center justify-center h-full text-center text-subtle py-10">
+                <div class="text-4xl mb-4 grayscale opacity-20">🕹️</div>
+                <p class="text-[14px]">Sélectionnez une console à gauche<br>pour voir son catalogue.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   </div>
 
   <!-- Footer Copyright -->
@@ -397,7 +648,11 @@
       'Zenith': '#10b981', 'Eclipse': '#f97316', 'Supernova': '#ef4444', 'Apex': '#f59e0b',
       'Quasar': '#a855f7', 'Singularity': '#ff3b30',
     };
-    const PLATFORM_ICON = { steam: '🎮', gog: '🌌', epic: '⚡' };
+    const PLATFORM_SVG = {
+      steam: '<svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M11.979 0C5.363 0 0 5.36 0 11.976c0 6.617 5.363 11.978 11.979 11.978 6.614 0 11.978-5.361 11.978-11.978C23.957 5.36 18.593 0 11.979 0zm7.143 11.025l-2.85 1.18c-.28-.215-.615-.365-.98-.423l1.838-4.526a4.295 4.295 0 011.992 3.769zm-4.706 2.394a2.49 2.49 0 01-1.391 3.203 2.502 2.502 0 01-3.218-1.385A2.49 2.49 0 0111.2 12a2.484 2.484 0 013.216 1.419zM4.686 16.79l2.846-4.045c.66.191 1.344.205 1.99.04l-2.585 3.674c-.538.765-1.554.912-2.275.33-.722-.584-.87-1.68-.376-2.428l1.419-2.148c-.5.492-.81 1.188-.81 1.96 0 1.516 1.233 2.747 2.748 2.747a2.766 2.766 0 001.077-.217L3.43 21.09c-1.428-1.89-2.274-4.223-2.274-6.735 0-3.328 1.442-6.319 3.738-8.414l5.65 5.65-5.858 5.199zm3.8-9.088c-.911 0-1.652.741-1.652 1.652 0 .91.741 1.65 1.652 1.65s1.65-.74 1.65-1.65c0-.911-.74-1.652-1.65-1.652zm10.74 3.093c-.02-.345-.084-.68-.186-1.002l-1.921 4.735c-.172.936-.78 1.706-1.597 2.143l3.3 3.328a11.986 11.986 0 00.404-9.204z"/></svg>',
+      gog: '<svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.66 16.485c-1.623 1.62-4.256 1.62-5.88 0-1.62-1.623-1.62-4.256 0-5.88 1.624-1.62 4.257-1.62 5.88 0 .807.807 1.258 1.884 1.258 3.024 0 1.14-.45 2.22-1.258 3.024l-3.35 1.547-2.585-1.194 3.1-1.43c-1.1-.96-2.824-.916-3.874.134-1.097 1.096-1.097 2.875 0 3.972 1.096 1.097 2.875 1.097 3.972 0 .497-.497.807-1.14.89-1.834h-2.115V13.88h3.9c.148 1.23-.205 2.505-.986 3.444zM7.15 13.06l1.317 1.318c-1.1 1.1-2.88 1.1-3.98 0-1.1-1.1-1.1-2.882 0-3.98s2.88-1.1 3.98 0L7.15 11.716c-.36-.36-.94-.36-1.3-.002-.36.36-.36.94 0 1.3.36.36.942.36 1.3 0z"/></svg>',
+      epic: '<svg viewBox="0 0 24 24" class="w-4 h-4 fill-current"><path d="M12.912 3.651a.63.63 0 0 0-.671.077l-4.267 3.39c-.19.151-.296.386-.28.627l.551 8.216a.63.63 0 0 0 .338.528l6.83 3.61c.238.125.52.1.737-.067l4.026-3.08a.63.63 0 0 0 .225-.636l-1.956-7.859a.63.63 0 0 0-.411-.453l-5.122-1.753zm.126 1.1c1.378.471 2.85 1.018 4.364 1.6l1.642 6.596-3.155 2.413-5.59-2.955-.45-6.72 3.189-2.534zm-8.2 5.093c.12-.02.247.014.343.093l2.844 2.348c.189.156.248.421.135.64l-2.096 4.093c-.114.223-.388.318-.616.215l-3.32-1.503a.5.5 0 0 1-.292-.475l.138-4.73c.009-.327.319-.556.634-.492l2.23.456z"/></svg>'
+    };
     const RARITY_LABEL = { common: 'Commun', rare: 'Rare', epic: 'Épique', legendary: 'Légendaire', mythic: 'Mythique' };
 
     function fmtPts(n) {
@@ -457,14 +712,15 @@
         ? `<span class="num text-[13px] text-subtle font-semibold">#${d.rank}</span>` : '';
 
       const isMe = localStorage.getItem('auth_user') === d.username;
+
       const settingsBtn = isMe
-        ? `<button onclick="openSettings()" class="text-[13px] font-medium text-white/90 hover:text-white px-3 py-1 rounded bg-white/10 border border-white/20 hover:bg-white/20 transition-colors flex items-center gap-1.5 ml-2 mt-2 sm:mt-0">
+        ? `<button id="btn-settings-header" class="text-[13px] font-medium text-white/90 hover:text-white px-3 py-1 rounded bg-white/10 border border-white/20 hover:bg-white/20 transition-colors flex items-center gap-1.5 ml-2 mt-2 sm:mt-0">
              <i data-lucide="settings" class="w-3.5 h-3.5"></i> Réglages
            </button>`
         : '';
 
       const imgClass = isMe ? "cursor-pointer group-hover:opacity-50 transition-opacity" : "";
-      const imgClick = isMe ? `onclick="openAvatarModal()"` : "";
+      const imgClick = isMe ? `id="btn-avatar-header"` : "";
       const imgOverlay = isMe ? `<div class="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer pointer-events-none">
           <i data-lucide="camera" class="w-8 h-8 text-white/80"></i>
         </div>` : "";
@@ -473,6 +729,20 @@
       const safeDisplayName = escapeHtml(d.display_name || d.username);
       const safeAvatarUrl = escapeHtml(avatarUrl(d.username, d.profile_image_url));
       const safeTitle = escapeHtml(d.active_title);
+
+      const renderedPlatforms = (d.platforms || []).map(p => {
+        const svg = PLATFORM_SVG[p.platform] || PLATFORM_SVG['steam'];
+        return `<div class="flex items-center gap-1.5 text-subtle hover:text-white transition-colors" title="${escapeHtml(p.platform_username || p.platform)}">
+                  ${svg}
+                </div>`;
+      }).join('<span class="w-1 h-1 rounded-full bg-white/10"></span>');
+
+      const platformsHtml = d.platforms && d.platforms.length > 0
+        ? `<div class="flex items-center gap-3">
+             <div class="w-1 h-1 rounded-full bg-white/20"></div>
+             ${renderedPlatforms}
+           </div>`
+        : '';
 
       document.getElementById('ph-header').innerHTML = `
         <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6">
@@ -494,9 +764,18 @@
               <span class="text-[12px] text-subtle px-2 py-0.5 rounded bg-white/5 border border-white/5 cursor-default">${safeTitle}</span>
               ${settingsBtn}
             </div>
-            <div class="text-[12px] text-subtle mt-3">Membre depuis ${memberSince(d.member_since)}</div>
+            <div class="flex items-center justify-center sm:justify-start gap-3 mt-3 text-[12px] text-subtle">
+              <div>Membre depuis ${memberSince(d.member_since)}</div>
+              ${platformsHtml}
+            </div>
           </div>
         </div>`;
+
+      const settingsBtnEl = document.getElementById('btn-settings-header');
+      if (settingsBtnEl) settingsBtnEl.addEventListener('click', openSettings);
+
+      const avatarBtnEl = document.getElementById('btn-avatar-header');
+      if (avatarBtnEl) avatarBtnEl.addEventListener('click', openAvatarModal);
     }
 
     function renderStats(d) {
@@ -514,76 +793,70 @@
         </div>`).join('');
     }
 
-    function renderPlatforms(platforms) {
-      const el = document.getElementById('ph-platforms');
-      const header = `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
-        <i data-lucide="link" class="w-4 h-4 text-subtle"></i> Plateformes connectées
-      </h2>`;
-      if (!platforms.length) {
-        el.innerHTML = header + `<div class="flex flex-col items-center justify-center py-8 gap-2 text-subtle text-[13px]">
-          <i data-lucide="unlink" class="w-7 h-7 opacity-30"></i>Aucune plateforme connectée</div>`;
-        return;
-      }
-      el.innerHTML = header + platforms.map(p => `
-        <div class="flex items-center gap-3 py-3 border-b border-white/5 last:border-0">
-          <span class="text-xl">${PLATFORM_ICON[p.platform] || '🎮'}</span>
-          <div>
-            <div class="text-[14px] font-medium text-white capitalize">${escapeHtml(p.platform)}</div>
-            ${p.platform_username ? `<div class="text-[12px] text-subtle">${escapeHtml(p.platform_username)}</div>` : ''}
-          </div>
-          <div class="ml-auto text-[11px] text-subtle">${new Date(p.connected_at).toLocaleDateString('fr-FR')}</div>
-        </div>`).join('');
-    }
 
-    function renderTitleCard(d) {
-      const lc = LEAGUE_COLORS[d.league] || '#86868b';
-      document.getElementById('ph-title').innerHTML = `
-        <h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
-          <i data-lucide="medal" class="w-4 h-4 text-subtle"></i> Titre actif
-        </h2>
-        <div class="flex flex-col items-center justify-center py-4 gap-3">
-          <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
-               style="background:${lc}18;border:1px solid ${lc}30">🏆</div>
-          <div class="text-[16px] font-semibold text-white text-center">${escapeHtml(d.active_title)}</div>
-          ${leagueBadge(d.league)}
-          <div class="text-[12px] text-subtle text-center">${fmtPts(d.total_points)} points · Ligue ${escapeHtml(d.league)}</div>
-        </div>`;
-    }
 
-    function renderGames(games) {
+    function renderGames(games, isMe) {
       const el = document.getElementById('ph-games');
+      const completedCount = games.filter(g => Math.round(g.completion_pct) === 100).length;
+
+      const addBtn = isMe ? `
+        <button class="btn-add-game-trigger flex items-center gap-1.5 px-2.5 py-1 rounded bg-brand/10 border border-brand/20 text-brand hover:bg-brand/20 transition-all text-[11px] font-semibold">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> Ajouter
+        </button>` : '';
+
       const header = `<h2 class="text-[13px] font-semibold text-white mb-5 flex items-center gap-2">
         <i data-lucide="gamepad-2" class="w-4 h-4 text-subtle"></i> Bibliothèque de jeux
-        ${games.length ? `<span class="ml-auto text-subtle font-normal">${games.length} jeu${games.length > 1 ? 'x' : ''}</span>` : ''}
+        <div class="ml-auto flex items-center gap-3">
+          ${addBtn}
+          ${completedCount > 0 ? `<span class="text-emerald-400 font-medium flex items-center gap-1.5"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> ${completedCount} terminé${completedCount > 1 ? 's' : ''}</span>` : ''}
+          ${games.length ? `<span class="text-subtle font-normal">${games.length} jeu${games.length > 1 ? 'x' : ''}</span>` : ''}
+        </div>
       </h2>`;
       if (!games.length) {
-        el.innerHTML = `<div class="card p-6">${header}
-          <div class="flex flex-col items-center justify-center py-10 gap-2 text-subtle text-[13px]">
-            <i data-lucide="inbox" class="w-8 h-8 opacity-30"></i>Aucun jeu synchronisé
+        el.innerHTML = `<div class="card flex flex-col h-[500px]">
+          <div class="p-6 pb-0 shrink-0">${header}</div>
+          <div class="flex-1 flex flex-col items-center justify-center gap-2 text-subtle text-[13px] p-6">
+            <i data-lucide="inbox" class="w-8 h-8 opacity-30"></i>Aucun jeu synchronisé/ajouté
           </div></div>`;
-        return;
-      }
-      const cards = games.map(g => {
-        const pct = g.completion_pct.toFixed(0);
-        const safeCoverUrl = sanitizeUrl(g.cover_image_url);
-        const cover = safeCoverUrl
-          ? `<img src="${escapeHtml(safeCoverUrl)}" class="w-full h-full object-cover" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'flex items-center justify-center w-full h-full text-3xl\\'>🎮</div>'">`
-          : `<div class="flex items-center justify-center w-full h-full text-3xl">🎮</div>`;
-        return `<div class="card overflow-hidden hover:scale-[1.02] transition-transform">
-          <div class="h-28 bg-white/5 overflow-hidden">${cover}</div>
-          <div class="p-3">
-            <div class="text-[13px] font-medium text-white truncate mb-2">${escapeHtml(g.title)}</div>
-            <div class="flex items-center justify-between text-[11px] text-subtle mb-1.5">
-              <span>${g.achievements_unlocked}/${g.achievements_total}</span><span>${pct}%</span>
-            </div>
-            <div class="h-1 bg-black rounded-full overflow-hidden border border-white/5">
-              <div class="h-full rounded-full bg-brand" style="width:${pct}%"></div>
-            </div>
-            <div class="mt-2 text-[11px] text-subtle">${fmtTime(g.playtime_minutes)}</div>
+      } else {
+        const cards = games.map(g => {
+          const pct = g.completion_pct.toFixed(0);
+          const safeCoverUrl = sanitizeUrl(g.cover_image_url);
+          const cover = safeCoverUrl
+            ? `<img src="${escapeHtml(safeCoverUrl)}" class="w-full h-full object-cover" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'flex items-center justify-center w-full h-full text-3xl\\'>🎮</div>'">`
+            : `<div class="flex items-center justify-center w-full h-full text-3xl">🎮</div>`;
+          return `<div class="card overflow-hidden hover:scale-[1.02] transition-transform">
+        <div class="h-48 bg-white/5 overflow-hidden">${cover}</div>
+        <div class="p-5">
+          <div class="text-[20px] font-bold text-white truncate mb-2">${escapeHtml(g.title)}</div>
+          <div class="flex items-center justify-between text-[16px] text-subtle mb-3">
+            <span>${g.achievements_unlocked}/${g.achievements_total}</span><span>${pct}%</span>
           </div>
-        </div>`;
-      }).join('');
-      el.innerHTML = `<div class="card p-6">${header}<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">${cards}</div></div>`;
+          <div class="h-2 bg-black rounded-full overflow-hidden border border-white/5">
+            <div class="h-full rounded-full bg-brand" style="width:${pct}%"></div>
+          </div>
+          <div class="mt-3 text-[15px] text-subtle">${fmtTime(g.playtime_minutes)}</div>
+        </div>
+      </div>`;
+        }).join('');
+        const addGameBtn = isMe ? `
+          <div class="mt-6 flex justify-center">
+            <button class="btn-add-game-trigger flex items-center gap-2 px-6 py-2.5 rounded-full bg-brand/10 border border-brand/30 text-brand hover:bg-brand/20 transition-all text-[13px] font-semibold">
+              <i data-lucide="plus" class="w-4 h-4"></i> Ajouter un jeu manuellement
+            </button>
+          </div>` : '';
+
+        el.innerHTML = `
+          <div class="card flex flex-col h-[500px]">
+            <div class="p-6 pb-2 shrink-0">${header}</div>
+            <div class="p-6 pt-0 overflow-y-auto flex-1">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">${cards}</div>
+          ${addGameBtn}
+        </div>
+      </div>`;
+      }
+
+      // Les écouteurs sont gérés par délégation d'événements globale au bas du script
     }
 
     function renderAchievements(list) {
@@ -592,8 +865,9 @@
         <i data-lucide="award" class="w-4 h-4 text-subtle"></i> Succès récents
       </h2>`;
       if (!list.length) {
-        el.innerHTML = `<div class="card p-6">${header}
-          <div class="flex flex-col items-center justify-center py-10 gap-2 text-subtle text-[13px]">
+        el.innerHTML = `<div class="card flex flex-col h-[500px]">
+          <div class="p-6 pb-0 shrink-0">${header}</div>
+          <div class="flex-1 flex flex-col items-center justify-center gap-2 text-subtle text-[13px] p-6">
             <i data-lucide="lock" class="w-8 h-8 opacity-30"></i>Aucun succès débloqué
           </div></div>`;
         return;
@@ -613,7 +887,13 @@
           </div>
         </div>`;
       }).join('');
-      el.innerHTML = `<div class="card p-6">${header}${rows}</div>`;
+      el.innerHTML = `
+        <div class="card flex flex-col h-[500px]">
+          <div class="p-6 pb-2 shrink-0">${header}</div>
+          <div class="p-6 pt-0 overflow-y-auto flex-1">
+            <div class="flex flex-col">${rows}</div>
+          </div>
+        </div>`;
     }
 
     function logout() {
@@ -624,20 +904,39 @@
 
     // ── Settings Modal ────────────────────────────────────────────────────────
 
-    function openSettings() {
+    function switchSettingsTab(tab) {
+      const isProfile = tab === 'profile';
+      document.getElementById('settings-tab-profile').classList.toggle('hidden', !isProfile);
+      document.getElementById('settings-tab-platforms').classList.toggle('hidden', isProfile);
+      const btnProfile = document.getElementById('tab-btn-profile');
+      const btnPlatforms = document.getElementById('tab-btn-platforms');
+      btnProfile.classList.toggle('text-white', isProfile);
+      btnProfile.classList.toggle('border-brand', isProfile);
+      btnProfile.classList.toggle('text-subtle', !isProfile);
+      btnProfile.classList.toggle('border-transparent', !isProfile);
+      btnPlatforms.classList.toggle('text-white', !isProfile);
+      btnPlatforms.classList.toggle('border-brand', !isProfile);
+      btnPlatforms.classList.toggle('text-subtle', isProfile);
+      btnPlatforms.classList.toggle('border-transparent', isProfile);
+      if (!isProfile) {
+        loadPlatforms().then(() => renderPlatformsSection());
+      }
+    }
+
+    function openSettings(targetTab) {
       const modal = document.getElementById('settings-modal');
       const inner = modal.querySelector('.card');
-      const errorDiv = document.getElementById('settings-err');
-      const successDiv = document.getElementById('settings-success');
+      const errorWrapper = document.getElementById('settings-err-wrapper');
+      const successWrapper = document.getElementById('settings-success-wrapper');
       const nameInput = document.getElementById('settings-display-name');
 
-      errorDiv.classList.add('hidden');
-      successDiv.classList.add('hidden');
+      errorWrapper.classList.remove('show');
+      successWrapper.classList.remove('show');
 
       const currentName = document.querySelector('#ph-header h1')?.textContent;
-      if (currentName) {
-        nameInput.value = currentName;
-      }
+      if (currentName) nameInput.value = currentName;
+
+      switchSettingsTab(targetTab || 'profile');
 
       modal.classList.remove('hidden');
       setTimeout(() => {
@@ -645,7 +944,7 @@
         inner.classList.remove('scale-95');
       }, 10);
 
-      nameInput.focus();
+      if (!targetTab || targetTab === 'profile') nameInput.focus();
     }
 
     function closeSettings() {
@@ -666,16 +965,17 @@
       if (!token) return;
 
       const errorDiv = document.getElementById('settings-err');
-      const successDiv = document.getElementById('settings-success');
+      const errorWrapper = document.getElementById('settings-err-wrapper');
+      const successWrapper = document.getElementById('settings-success-wrapper');
       const btn = e.target.querySelector('button[type="submit"]');
       const newName = document.getElementById('settings-display-name').value.trim();
 
-      errorDiv.classList.add('hidden');
-      successDiv.classList.add('hidden');
+      errorWrapper.classList.remove('show');
+      successWrapper.classList.remove('show');
 
       if (newName.length < 2 || newName.length > 15) {
         errorDiv.textContent = "Le nom doit contenir entre 2 et 15 caractères.";
-        errorDiv.classList.remove('hidden');
+        errorWrapper.classList.add('show');
         return;
       }
 
@@ -700,7 +1000,7 @@
           throw new Error(data.error || 'Erreur lors de la mise à jour.');
         }
 
-        successDiv.classList.remove('hidden');
+        successWrapper.classList.add('show');
         const h1 = document.querySelector('#ph-header h1');
         if (h1) h1.textContent = newName || localStorage.getItem('auth_user');
 
@@ -708,7 +1008,7 @@
 
       } catch (err) {
         errorDiv.textContent = err.message;
-        errorDiv.classList.remove('hidden');
+        errorWrapper.classList.add('show');
       } finally {
         btn.innerHTML = originalHtml;
         btn.disabled = false;
@@ -721,12 +1021,12 @@
     function openAvatarModal() {
       const modal = document.getElementById('avatar-modal');
       const inner = modal.querySelector('.card');
-      const errorDiv = document.getElementById('avatar-err');
-      const successDiv = document.getElementById('avatar-success');
+      const errorWrapper = document.getElementById('avatar-err-wrapper');
+      const successWrapper = document.getElementById('avatar-success-wrapper');
       const fileInput = document.getElementById('avatar-file');
 
-      errorDiv.classList.add('hidden');
-      successDiv.classList.add('hidden');
+      errorWrapper.classList.remove('show');
+      successWrapper.classList.remove('show');
 
       // Reset file input
       document.getElementById('avatar-file-name').textContent = 'Sélectionner un fichier (20 Mo max)';
@@ -760,6 +1060,7 @@
       const nameEl = document.getElementById('avatar-file-name');
       const fileInput = document.getElementById('avatar-file');
       const errorDiv = document.getElementById('avatar-err');
+      const errorWrapper = document.getElementById('avatar-err-wrapper');
 
       fileInput.dataset.cleared = 'false';
 
@@ -767,12 +1068,12 @@
         const MAX_SIZE = 20 * 1024 * 1024; // 20 Mo
         if (file.size > MAX_SIZE) {
           errorDiv.textContent = 'Fichier trop volumineux (20 Mo max).';
-          errorDiv.classList.remove('hidden');
+          errorWrapper.classList.add('show');
           fileInput.value = '';
           nameEl.textContent = 'Sélectionner un fichier (20 Mo max)';
           return;
         }
-        errorDiv.classList.add('hidden');
+        errorWrapper.classList.remove('show');
         let name = file.name;
         if (name.length > 20) name = name.substring(0, 17) + '...';
         nameEl.textContent = name;
@@ -787,7 +1088,8 @@
       if (!token) return;
 
       const errorDiv = document.getElementById('avatar-err');
-      const successDiv = document.getElementById('avatar-success');
+      const errorWrapper = document.getElementById('avatar-err-wrapper');
+      const successWrapper = document.getElementById('avatar-success-wrapper');
       const btn = e.target.querySelector('button[type="submit"]');
 
       const fileInput = document.getElementById('avatar-file');
@@ -800,8 +1102,8 @@
         return;
       }
 
-      errorDiv.classList.add('hidden');
-      successDiv.classList.add('hidden');
+      errorWrapper.classList.remove('show');
+      successWrapper.classList.remove('show');
 
       const originalHtml = btn.innerHTML;
       btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Enregistrement...';
@@ -847,7 +1149,7 @@
             throw new Error(data.error || 'Erreur lors de la mise à jour.');
           }
 
-          successDiv.classList.remove('hidden');
+          successWrapper.classList.add('show');
 
           const img = document.querySelector('#ph-header img');
           if (img) {
@@ -864,11 +1166,272 @@
 
       } catch (err) {
         errorDiv.textContent = err.message;
-        errorDiv.classList.remove('hidden');
+        errorWrapper.classList.add('show');
       } finally {
         btn.innerHTML = originalHtml;
         btn.disabled = false;
         lucide.createIcons();
+      }
+    }
+
+    // ── Platform Connections ──────────────────────────────────────────────────
+
+    let connectedPlatforms = [];
+    let currentPlatformToConnect = null;
+
+    const PLATFORM_META = {
+      steam: { name: 'Steam', badge: null },
+      gog: { name: 'GOG', badge: 'Exp\u00e9rimental' },
+      epic: { name: 'Epic Games', badge: 'Acc\u00e8s limit\u00e9' },
+    };
+
+    async function loadPlatforms() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      try {
+        const res = await fetch('/api/platforms', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) connectedPlatforms = await res.json();
+      } catch (_) { }
+    }
+
+    function renderPlatformsSection() {
+      const el = document.getElementById('settings-platforms-list');
+      if (!el) return;
+
+      const cards = ['steam', 'gog', 'epic'].map(key => {
+        const meta = PLATFORM_META[key];
+        const conn = connectedPlatforms.find(c => c.platform === key);
+        const connected = !!conn;
+        const isEpic = key === 'epic';
+        const statusColor = connected ? 'text-emerald-400' : 'text-subtle/60';
+        const dotColor = connected ? 'bg-emerald-400' : 'bg-white/20';
+        const badgeHtml = meta.badge
+          ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">${escapeHtml(meta.badge)}</span>`
+          : '';
+        const syncHtml = connected && conn.last_synced_at
+          ? `<div class="text-[11px] text-subtle/50 mt-0.5">Sync\u00a0: ${escapeHtml(new Date(conn.last_synced_at).toLocaleDateString('fr-FR'))}</div>`
+          : '';
+
+        let actions;
+        if (isEpic) {
+          actions = `<button class="px-3 py-1.5 rounded-lg text-[12px] text-subtle/40 cursor-not-allowed" disabled>Bient\u00f4t disponible</button>`;
+        } else if (connected) {
+          actions = `<div class="flex items-center gap-2">
+            <button id="btn-sync-${key}" data-action="sync" data-platform="${key}"
+              class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-brand hover:text-white hover:bg-brand/20 border border-brand/20 transition-colors flex items-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-3 h-3"></i>Sync
+            </button>
+            <button data-action="disconnect" data-platform="${key}"
+              class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/10 border border-red-500/10 transition-colors">
+              D\u00e9connecter
+            </button>
+          </div>`;
+        } else {
+          actions = `<button data-action="connect" data-platform="${key}"
+            class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-white bg-white/10 hover:bg-white/20 border border-white/10 transition-colors flex items-center gap-1.5">
+            <i data-lucide="link" class="w-3 h-3"></i>Connecter
+          </button>`;
+        }
+
+        return `<div class="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center ${statusColor}">
+              ${PLATFORM_SVG[key] || ''}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-0.5">
+                <span class="text-[14px] font-medium text-white">${escapeHtml(meta.name)}</span>
+                ${badgeHtml}
+              </div>
+              <div class="flex items-center gap-1.5 text-[11px] ${statusColor}">
+                <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
+                ${connected ? escapeHtml(conn.platform_username || 'Connect\u00e9') : 'Non connect\u00e9'}
+              </div>
+              ${syncHtml}
+            </div>
+          </div>
+          <div>${actions}</div>
+        </div>`;
+      }).join('');
+
+      el.innerHTML = `<div>${cards}</div>`;
+      lucide.createIcons();
+    }
+
+    function openPlatformModal(platform) {
+      currentPlatformToConnect = platform;
+      const meta = PLATFORM_META[platform];
+      document.getElementById('platform-modal-title').textContent = 'Connecter ' + meta.name;
+
+      // Show/hide Steam-specific sections
+      const steamOauth = document.getElementById('platform-steam-oauth');
+      const apikeySection = document.getElementById('platform-apikey-section');
+      const userIdSection = document.getElementById('platform-user-id-section');
+      const submitRow = document.getElementById('platform-submit-row');
+      const hintEl = document.getElementById('platform-user-id-hint');
+
+      if (platform === 'steam') {
+        steamOauth.classList.remove('hidden');
+        apikeySection.classList.remove('hidden');
+        userIdSection.classList.add('hidden');
+        submitRow.classList.add('hidden');
+      } else {
+        steamOauth.classList.add('hidden');
+        apikeySection.classList.add('hidden');
+        userIdSection.classList.remove('hidden');
+        submitRow.classList.remove('hidden');
+        hintEl.textContent = 'Votre identifiant unique sur la plateforme.';
+      }
+
+      document.getElementById('platform-err-wrapper').classList.remove('show');
+      document.getElementById('platform-success-wrapper').classList.remove('show');
+      document.getElementById('platform-user-id').value = '';
+      document.getElementById('platform-apikey').value = '';
+
+      const modal = document.getElementById('platform-modal');
+      const inner = modal.querySelector('.card');
+      modal.classList.remove('hidden');
+      setTimeout(() => { modal.classList.remove('opacity-0'); inner.classList.remove('scale-95'); }, 10);
+      if (platform !== 'steam') document.getElementById('platform-user-id').focus();
+    }
+
+    function closePlatformModal() {
+      const modal = document.getElementById('platform-modal');
+      const inner = modal.querySelector('.card');
+      modal.classList.add('opacity-0');
+      inner.classList.add('scale-95');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    async function connectViaSteam() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      // Sauvegarder la clé API avant la redirection externe
+      const apikey = document.getElementById('platform-apikey').value.trim();
+      if (apikey) {
+        sessionStorage.setItem('steam_pending_apikey', apikey);
+      } else {
+        sessionStorage.removeItem('steam_pending_apikey');
+      }
+
+      const btn = document.getElementById('btn-steam-openid');
+      const orig = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Redirection\u2026';
+      try {
+        const res = await fetch('/api/platforms/steam/auth', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Erreur lors de la redirection Steam.');
+        const data = await res.json();
+        window.location.href = data.redirect_url;
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+        sessionStorage.removeItem('steam_pending_apikey');
+        const errDiv = document.getElementById('platform-err');
+        const errWrapper = document.getElementById('platform-err-wrapper');
+        errDiv.textContent = err.message;
+        errWrapper.classList.add('show');
+      }
+    }
+
+    async function connectPlatformSubmit(e) {
+      e.preventDefault();
+      const token = localStorage.getItem('auth_token');
+      if (!token || !currentPlatformToConnect) return;
+
+      const errDiv = document.getElementById('platform-err');
+      const errWrapper = document.getElementById('platform-err-wrapper');
+      const succWrapper = document.getElementById('platform-success-wrapper');
+      const btn = e.target.querySelector('button[type="submit"]');
+      const userId = document.getElementById('platform-user-id').value.trim();
+      const apikey = document.getElementById('platform-apikey').value.trim();
+
+      errWrapper.classList.remove('show');
+      succWrapper.classList.remove('show');
+
+      if (!userId) {
+        errDiv.textContent = 'Veuillez renseigner votre identifiant de plateforme.';
+        errWrapper.classList.add('show');
+        return;
+      }
+
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Connexion\u2026';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/platforms/${encodeURIComponent(currentPlatformToConnect)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ platform_user_id: userId, platform_username: null, access_token: apikey || null })
+        });
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error || 'Erreur lors de la connexion.');
+        }
+        succWrapper.classList.add('show');
+        await loadPlatforms();
+        renderPlatformsSection();
+        setTimeout(() => closePlatformModal(), 1500);
+      } catch (err) {
+        errDiv.textContent = err.message;
+        errWrapper.classList.add('show');
+      } finally {
+        btn.innerHTML = orig;
+        btn.disabled = false;
+        lucide.createIcons();
+      }
+    }
+
+    async function disconnectPlatform(platform) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      try {
+        const res = await fetch(`/api/platforms/${encodeURIComponent(platform)}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) { await loadPlatforms(); renderPlatformsSection(); }
+      } catch (_) { }
+    }
+
+    function confirmDisconnect(platform) {
+      if (confirm(`D\u00e9connecter ${PLATFORM_META[platform].name} ?\nVos donn\u00e9es de jeu resteront enregistr\u00e9es.`)) {
+        disconnectPlatform(platform);
+      }
+    }
+
+    async function syncPlatform(platform) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      const btn = document.getElementById(`btn-sync-${platform}`);
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<div class="w-3 h-3 border-2 border-brand/30 border-t-brand rounded-full animate-spin inline-block mr-1"></div>Sync\u2026';
+      }
+      try {
+        const res = await fetch(`/api/platforms/${encodeURIComponent(platform)}/sync`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json().catch(() => ({}));
+        await loadPlatforms();
+        renderPlatformsSection();
+        if (!res.ok) {
+          const msgDiv = document.createElement('div');
+          msgDiv.className = 'text-[12px] text-red-400 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 mb-3';
+          msgDiv.textContent = data.error || 'Erreur lors de la synchronisation.';
+          document.getElementById('settings-platforms-list')?.prepend(msgDiv);
+          setTimeout(() => msgDiv.remove(), 5000);
+        }
+      } catch (_) {
+        await loadPlatforms();
+        renderPlatformsSection();
       }
     }
 
@@ -878,10 +1441,19 @@
       const token = localStorage.getItem('auth_token');
       const authUser = localStorage.getItem('auth_user');
 
-      // Mise à jour nav
       if (token && authUser) {
         const monEspace = document.getElementById('nav-mon-espace');
-        if (monEspace) monEspace.classList.remove('auth-hidden');
+        if (monEspace) {
+          monEspace.classList.remove('auth-hidden');
+          const viewingUser = new URLSearchParams(window.location.search).get('u') || authUser;
+          if (viewingUser === authUser) {
+            monEspace.className = "text-white font-semibold hidden sm:block cursor-default";
+            monEspace.removeAttribute('href');
+          } else {
+            monEspace.className = "text-[13px] font-medium text-subtle hover:text-white transition-colors hidden sm:block";
+            monEspace.setAttribute('href', '/profile.html');
+          }
+        }
 
         const loginBtn = document.getElementById('nav-login');
         if (loginBtn) loginBtn.classList.add('hidden');
@@ -942,13 +1514,48 @@
         const c = document.getElementById('profile-content');
         c.classList.remove('hidden'); c.classList.add('flex');
 
+        const isMe = d.username === localStorage.getItem('auth_user');
         renderHeader(d);
         renderStats(d);
-        renderPlatforms(d.platforms);
-        renderTitleCard(d);
-        renderGames(d.games);
+        renderGames(d.games, isMe);
         renderAchievements(d.recent_achievements);
         lucide.createIcons();
+
+        // Open Plateformes tab after Steam OpenID callback
+        if (window.__openPlatformsTabOnLoad && isMe) {
+          const status = window.__openPlatformsTabOnLoad;
+          window.__openPlatformsTabOnLoad = null;
+          openSettings('platforms');
+
+          if (status === 'ok') {
+            // Sauvegarder la clé API si l'utilisateur en avait saisi une avant la redirection
+            const pendingApikey = sessionStorage.getItem('steam_pending_apikey');
+            sessionStorage.removeItem('steam_pending_apikey');
+            if (pendingApikey) {
+              const token = localStorage.getItem('auth_token');
+              if (token) {
+                fetch('/api/platforms/steam/apikey', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                  body: JSON.stringify({ access_token: pendingApikey })
+                }).catch(() => { });
+              }
+            }
+
+            const msg = document.createElement('div');
+            msg.className = 'text-[12px] text-green-400 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20 mb-3';
+            msg.textContent = 'Compte Steam connect\u00e9 avec succ\u00e8s\u00a0!';
+            document.getElementById('settings-platforms-list')?.prepend(msg);
+            setTimeout(() => msg.remove(), 5000);
+          } else {
+            sessionStorage.removeItem('steam_pending_apikey');
+            const msg = document.createElement('div');
+            msg.className = 'text-[12px] text-red-400 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 mb-3';
+            msg.textContent = 'Erreur Steam\u00a0: ' + status.replace(/\+/g, ' ');
+            document.getElementById('settings-platforms-list')?.prepend(msg);
+            setTimeout(() => msg.remove(), 6000);
+          }
+        }
       } catch (err) {
         document.getElementById('profile-loading').classList.add('hidden');
         const e = document.getElementById('profile-error');
@@ -969,30 +1576,479 @@
       form.addEventListener('change', (e) => hideCustomError(e.target));
     });
 
-    function getValidationTarget(input) {
-      if (input.parentElement.classList.contains('relative') || input.parentElement.tagName === 'LABEL') {
-        return input.parentElement;
+    function getFieldParent(input) {
+      let el = input;
+      while (el && el.parentElement && el.parentElement.tagName !== 'FORM' && !el.parentElement.classList.contains('space-y-4') && !el.parentElement.classList.contains('space-y-5')) {
+        el = el.parentElement;
       }
-      return input;
+      return el;
     }
 
     function showCustomError(input, msg) {
       hideCustomError(input);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'custom-validation-popup grid transition-all duration-300 ease-out z-10';
+      wrapper.style.gridTemplateRows = '0fr';
+      wrapper.style.opacity = '0';
+
+      const inner = document.createElement('div');
+      inner.className = 'overflow-hidden';
+
       const err = document.createElement('div');
-      err.className = 'custom-validation-popup anim-popup mt-2.5 px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 text-[12px] font-medium leading-relaxed shadow-sm w-full flex gap-2.5 items-start z-10 relative';
+      err.className = 'mt-2.5 px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 text-[12px] font-medium leading-relaxed shadow-sm w-full flex gap-2.5 items-start relative';
       err.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5 text-red-400"></i><span class="opacity-90">${msg}</span>`;
-      getValidationTarget(input).insertAdjacentElement('afterend', err);
+
+      inner.appendChild(err);
+      wrapper.appendChild(inner);
+
+      getFieldParent(input).appendChild(wrapper);
       if (window.lucide) lucide.createIcons();
+
+      requestAnimationFrame(() => {
+        wrapper.style.gridTemplateRows = '1fr';
+        wrapper.style.opacity = '1';
+      });
     }
 
     function hideCustomError(input) {
-      const target = getValidationTarget(input);
-      if (target.nextElementSibling && target.nextElementSibling.classList.contains('custom-validation-popup')) {
-        target.nextElementSibling.remove();
+      const wrapper = getFieldParent(input).querySelector('.custom-validation-popup');
+      if (wrapper) {
+        wrapper.style.gridTemplateRows = '0fr';
+        wrapper.style.opacity = '0';
+        setTimeout(() => wrapper.remove(), 300);
       }
     }
 
     lucide.createIcons();
+
+    // Event Listeners for statically defined elements (CSP fix)
+    document.getElementById('nav-logout').addEventListener('click', logout);
+    document.getElementById('btn-close-settings-1').addEventListener('click', closeSettings);
+    document.getElementById('form-settings').addEventListener('submit', saveSettings);
+    document.getElementById('btn-close-settings-2').addEventListener('click', closeSettings);
+    document.getElementById('btn-close-avatar-1').addEventListener('click', closeAvatarModal);
+    document.getElementById('form-avatar').addEventListener('submit', saveAvatar);
+    document.getElementById('avatar-file').addEventListener('change', handleAvatarFileSelect);
+    document.getElementById('btn-remove-avatar').addEventListener('click', () => {
+      document.getElementById('avatar-file-name').textContent = 'Sélectionner un fichier (20 Mo max)';
+      const af = document.getElementById('avatar-file');
+      af.dataset.cleared = 'true';
+      af.value = '';
+    });
+    document.getElementById('btn-close-avatar-2').addEventListener('click', closeAvatarModal);
+
+    // Platform modal listeners
+    document.getElementById('btn-close-platform-1').addEventListener('click', closePlatformModal);
+    document.getElementById('btn-close-platform-2').addEventListener('click', closePlatformModal);
+    document.getElementById('form-platform').addEventListener('submit', connectPlatformSubmit);
+    document.getElementById('btn-steam-openid').addEventListener('click', connectViaSteam);
+
+    // Tab switching in settings modal
+    document.getElementById('tab-btn-profile').addEventListener('click', () => switchSettingsTab('profile'));
+    document.getElementById('tab-btn-platforms').addEventListener('click', () => switchSettingsTab('platforms'));
+
+    // Event delegation for platform action buttons (connect / sync / disconnect)
+    document.getElementById('settings-tab-platforms').addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn || btn.disabled) return;
+      const action = btn.dataset.action;
+      const platform = btn.dataset.platform;
+      if (action === 'connect') openPlatformModal(platform);
+      else if (action === 'sync') syncPlatform(platform);
+      else if (action === 'disconnect') confirmDisconnect(platform);
+    });
+
+    // ── Retro Gaming Manual Add ──────────────────────────────────────────────
+
+    let retroConsolesCache = null;
+    let retroGamesCache = {};
+
+    let selectedRetroConsole = null;
+    let selectedRetroGame = null;
+
+    async function openAddGameModal() {
+      console.log('Attempting to open Retro Add Game Modal...');
+      const modal = document.getElementById('add-game-modal');
+      if (!modal) {
+        console.error('Modal "add-game-modal" not found in DOM');
+        alert("Erreur : Le modal d'ajout n'a pas été trouvé. Veuillez recharger la page.");
+        return;
+      }
+
+      const inner = modal.querySelector('.card');
+      const list = document.getElementById('retro-consoles-list');
+      const grid = document.getElementById('retro-catalog-grid');
+      const emptyState = document.getElementById('retro-catalog-empty');
+      const form = document.getElementById('retro-game-form');
+      const backBtn = document.getElementById('btn-back-to-catalog');
+      const catalogTitle = document.getElementById('retro-catalog-title');
+
+      if (!inner || !list || !grid || !emptyState || !form || !backBtn || !catalogTitle) {
+        console.error('One or more required elements missing in Retro Modal');
+        return;
+      }
+
+      // Clear state
+      selectedRetroConsole = null;
+      selectedRetroGame = null;
+      grid.classList.add('hidden');
+      emptyState.classList.remove('hidden');
+      form.classList.add('hidden');
+      backBtn.classList.add('hidden');
+      catalogTitle.classList.remove('hidden');
+      document.getElementById('retro-search-wrapper').classList.add('hidden');
+
+      // Fetch consoles from API if not cached
+      if (!retroConsolesCache) {
+        list.innerHTML = '<div class="text-subtle text-[13px] px-3 py-4 text-center">Chargement...</div>';
+        try {
+          const resp = await fetch('/api/retro-consoles');
+          if (!resp.ok) throw new Error('Erreur serveur');
+          retroConsolesCache = await resp.json();
+        } catch (_e) {
+          list.innerHTML = '<div class="text-red-400 text-[13px] px-3 py-4 text-center">Erreur de chargement</div>';
+          modal.classList.remove('hidden');
+          setTimeout(() => { modal.classList.remove('opacity-0'); inner.classList.remove('scale-95'); }, 10);
+          return;
+        }
+      }
+
+      // Render consoles (name only, smaller text)
+      list.innerHTML = retroConsolesCache.map(c => `
+        <button data-console="${c.id}" class="w-full text-left px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all border border-transparent text-subtle hover:text-white hover:bg-white/5">
+          ${c.name}
+        </button>
+      `).join('');
+
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        inner.classList.remove('scale-95');
+      }, 10);
+
+      // Console selection listeners
+      list.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => selectRetroConsole(btn.dataset.console));
+      });
+
+      lucide.createIcons();
+    }
+
+    function closeAddGameModal() {
+      const modal = document.getElementById('add-game-modal');
+      const inner = modal.querySelector('.card');
+      modal.classList.add('opacity-0');
+      inner.classList.add('scale-95');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    function getDefaultCover(covers) {
+      if (!covers || covers.length === 0) return null;
+      const order = ['USA', 'Japan / USA', 'USA / Europe', 'Europe', 'World', 'Japan'];
+      for (const r of order) {
+        const c = covers.find(x => x.region === r);
+        if (c) return c.url;
+      }
+      return covers[0].url;
+    }
+
+    function switchCover(url, activeRegion) {
+      const iconEl = document.getElementById('retro-form-icon');
+      iconEl.innerHTML = `<img src="${url}" alt="" class="w-full h-full object-cover absolute inset-0">`;
+      iconEl.className = 'absolute inset-0 z-10';
+      document.querySelectorAll('#retro-cover-regions button').forEach(btn => {
+        const isActive = btn.dataset.region === activeRegion;
+        btn.className = `px-2 py-0.5 rounded-full text-[10px] font-medium transition-all ${isActive ? 'bg-brand/80 text-white' : 'bg-white/10 text-subtle hover:text-white hover:bg-white/20'}`;
+      });
+    }
+
+    async function selectRetroConsole(id) {
+      selectedRetroConsole = retroConsolesCache.find(c => c.id.toString() === id);
+      const list = document.getElementById('retro-consoles-list');
+      const grid = document.getElementById('retro-catalog-grid');
+      const emptyState = document.getElementById('retro-catalog-empty');
+      const form = document.getElementById('retro-game-form');
+      const backBtn = document.getElementById('btn-back-to-catalog');
+
+      list.querySelectorAll('button').forEach(btn => {
+        const isSel = btn.dataset.console === id;
+        btn.classList.toggle('bg-brand/10', isSel);
+        btn.classList.toggle('text-white', isSel);
+        btn.classList.toggle('border-brand/20', isSel);
+        btn.classList.toggle('text-subtle', !isSel);
+        btn.classList.toggle('border-transparent', !isSel);
+      });
+
+      emptyState.classList.add('hidden');
+      form.classList.add('hidden');
+      backBtn.classList.add('hidden');
+      grid.classList.remove('hidden');
+
+      const searchWrap = document.getElementById('retro-search-wrapper');
+      const searchInput = document.getElementById('retro-catalog-search');
+      searchWrap.classList.remove('hidden');
+      searchInput.value = '';
+
+      if (!retroGamesCache[id]) {
+        grid.innerHTML = '<div class="col-span-4 py-10 text-center text-subtle text-[13px]">Chargement des jeux...</div>';
+        try {
+          const resp = await fetch(`/api/retro-consoles/${selectedRetroConsole.id}/games`);
+          if (!resp.ok) throw new Error();
+          retroGamesCache[id] = await resp.json();
+        } catch (_e) {
+          grid.innerHTML = '<div class="col-span-4 py-10 text-center text-red-400 text-[13px]">Erreur de chargement des jeux</div>';
+          return;
+        }
+      }
+
+      renderRetroCatalogGrid();
+    }
+
+    function renderRetroCatalogGrid() {
+      if (!selectedRetroConsole) return;
+      const cid = selectedRetroConsole.id.toString();
+      const grid = document.getElementById('retro-catalog-grid');
+      const query = document.getElementById('retro-catalog-search').value.toLowerCase().trim();
+
+      const allGames = retroGamesCache[cid] || [];
+      const filtered = query
+        ? allGames.filter(g => g.name.toLowerCase().includes(query))
+        : allGames;
+
+      if (!filtered.length) {
+        grid.innerHTML = query
+          ? `<div class="col-span-4 py-10 text-center text-subtle text-[13px]">Aucun jeu trouvé pour "${query}"</div>`
+          : `<div class="col-span-4 py-10 text-center text-subtle text-[13px]">Aucun jeu disponible pour cette console</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(g => {
+        const cover = getDefaultCover(g.covers);
+        const safeName = g.name.replace(/"/g, '&quot;');
+        return cover
+          ? `<button data-game="${safeName}" class="aspect-[3/4] rounded-xl overflow-hidden group border border-white/10 hover:border-brand/40 transition-all relative">
+               <img src="${cover}" alt="${safeName}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy">
+               <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent pointer-events-none"></div>
+               <div class="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
+                 <div class="text-[14px] font-semibold leading-tight text-white line-clamp-2">${g.name}</div>
+               </div>
+             </button>`
+          : `<button data-game="${safeName}" class="aspect-[3/4] rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center p-6 text-center group hover:bg-brand/10 hover:border-brand/30 transition-all">
+               <div class="text-4xl mb-4 grayscale group-hover:grayscale-0 transition-all">👾</div>
+               <div class="text-[14px] font-semibold leading-tight text-subtle group-hover:text-white line-clamp-2">${g.name}</div>
+             </button>`;
+      }).join('');
+
+      grid.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => selectRetroGame(btn.dataset.game));
+      });
+    }
+
+    document.getElementById('retro-catalog-search')?.addEventListener('input', renderRetroCatalogGrid);
+
+    function selectRetroGame(name) {
+      const cid = selectedRetroConsole.id.toString();
+      const allGames = retroGamesCache[cid] || [];
+      selectedRetroGame = allGames.find(g => g.name === name);
+
+      const grid = document.getElementById('retro-catalog-grid');
+      const form = document.getElementById('retro-game-form');
+      const backBtn = document.getElementById('btn-back-to-catalog');
+
+      grid.classList.add('hidden');
+      form.classList.remove('hidden');
+      backBtn.classList.remove('hidden');
+      document.getElementById('retro-search-wrapper').classList.add('hidden');
+
+      document.getElementById('retro-form-title').textContent = selectedRetroGame.name;
+      document.getElementById('retro-form-desc').textContent = selectedRetroGame.description || '';
+      document.getElementById('retro-form-console-name').textContent = selectedRetroConsole.name + ' Edition';
+
+      // Cover image + region selector
+      const covers = selectedRetroGame.covers || [];
+      const iconEl = document.getElementById('retro-form-icon');
+      const regionsEl = document.getElementById('retro-cover-regions');
+      const defaultCover = getDefaultCover(covers);
+
+      if (defaultCover) {
+        iconEl.innerHTML = `<img src="${defaultCover}" alt="" class="w-full h-full object-cover absolute inset-0">`;
+        iconEl.className = 'absolute inset-0 z-10';
+      } else {
+        iconEl.innerHTML = '👾';
+        iconEl.className = 'text-5xl drop-shadow-lg z-10 transition-transform group-hover:scale-110 duration-500';
+      }
+
+      if (covers.length > 1) {
+        const defaultRegion = covers.find(c => c.url === defaultCover)?.region || covers[0].region;
+        regionsEl.innerHTML = covers.map(c => `
+          <button type="button" data-region="${c.region}" data-url="${c.url}"
+            class="px-2 py-0.5 rounded-full text-[10px] font-medium transition-all ${c.region === defaultRegion ? 'bg-brand/80 text-white' : 'bg-white/10 text-subtle hover:text-white hover:bg-white/20'}">
+            ${c.region}
+          </button>
+        `).join('');
+        regionsEl.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => switchCover(btn.dataset.url, btn.dataset.region));
+        });
+      } else {
+        regionsEl.innerHTML = '';
+      }
+
+      // Reset error state only
+      document.getElementById('retro-add-err-wrapper').classList.remove('show');
+    }
+
+    document.getElementById('btn-back-to-catalog')?.addEventListener('click', () => {
+      if (selectedRetroConsole) selectRetroConsole(selectedRetroConsole.id.toString());
+    });
+
+    async function saveRetroGame(e) {
+      e.preventDefault();
+      const title = selectedRetroGame?.name;
+      const ach = 0; // Default
+      const host = 0; // Default
+      const playtime = 0; // Default
+      const errWrapper = document.getElementById('retro-add-err-wrapper');
+      const errDiv = document.getElementById('retro-add-err');
+
+      if (!title) {
+        errDiv.textContent = "Veuillez sélectionner un jeu.";
+        errWrapper.classList.add('show');
+        return;
+      }
+
+      const btn = document.getElementById('retro-save-btn-text');
+      const orig = btn.textContent;
+      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Ajout...';
+      btn.parentElement.disabled = true;
+
+      try {
+        const res = await fetch('/api/games/manual', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+          },
+          body: JSON.stringify({
+            title,
+            console: selectedRetroConsole.id,
+            achievements_unlocked: ach,
+            achievements_total: host,
+            playtime_minutes: playtime
+          })
+        });
+
+        if (!res.ok) throw new Error('Erreur lors de l’ajout.');
+
+        alert(`Jeu "${title}" ajouté avec succès !`);
+        closeAddGameModal();
+        loadProfile(); // Refresh
+      } catch (err) {
+        errDiv.textContent = err.message;
+        errWrapper.classList.add('show');
+      } finally {
+        btn.textContent = orig;
+        btn.parentElement.disabled = false;
+      }
+    }
+
+    document.getElementById('form-add-retro-game').addEventListener('submit', saveRetroGame);
+    document.getElementById('btn-close-retro-modal').addEventListener('click', closeAddGameModal);
+    document.getElementById('btn-close-retro-2').addEventListener('click', closeAddGameModal);
+
+    // Délégation d'événements pour les boutons d'ajout manuel
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-add-game-trigger')) {
+        openAddGameModal();
+      }
+    });
+
+    // ── Défilement fluide de la zone profil ──────────────────────────
+    let targetScroll = 0;
+    let currentScroll = 0;
+    let isScrolling = false;
+    const scrollContainer = document.getElementById('profile-scroll-container');
+
+    function smoothScroll() {
+      if (!scrollContainer) return;
+      currentScroll += (targetScroll - currentScroll) * 0.04;
+      scrollContainer.scrollTop = currentScroll;
+
+      if (Math.abs(targetScroll - currentScroll) < 0.5) {
+        currentScroll = targetScroll;
+        scrollContainer.scrollTop = currentScroll;
+        isScrolling = false;
+      } else {
+        requestAnimationFrame(smoothScroll);
+      }
+    }
+
+    if (scrollContainer) {
+      scrollContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (!isScrolling) {
+          currentScroll = scrollContainer.scrollTop;
+          targetScroll = scrollContainer.scrollTop;
+        }
+        targetScroll += e.deltaY * 0.7;
+        targetScroll = Math.max(0, Math.min(targetScroll, scrollContainer.scrollHeight - scrollContainer.clientHeight));
+        if (!isScrolling) {
+          isScrolling = true;
+          requestAnimationFrame(smoothScroll);
+        }
+      }, { passive: false });
+    }
+
+    // ── Défilement fluide du catalogue Retro ─────────────────────────
+    let retroTargetScroll = 0;
+    let retroCurrentScroll = 0;
+    let isRetroScrolling = false;
+    const retroScrollContainer = document.getElementById('retro-workspace-container');
+
+    function smoothRetroScroll() {
+      if (!retroScrollContainer) return;
+      retroCurrentScroll += (retroTargetScroll - retroCurrentScroll) * 0.04;
+      retroScrollContainer.scrollTop = retroCurrentScroll;
+
+      if (Math.abs(retroTargetScroll - retroCurrentScroll) < 0.5) {
+        retroCurrentScroll = retroTargetScroll;
+        retroScrollContainer.scrollTop = retroCurrentScroll;
+        isRetroScrolling = false;
+      } else {
+        requestAnimationFrame(smoothRetroScroll);
+      }
+    }
+
+    if (retroScrollContainer) {
+      retroScrollContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (!isRetroScrolling) {
+          retroCurrentScroll = retroScrollContainer.scrollTop;
+          retroTargetScroll = retroScrollContainer.scrollTop;
+        }
+        retroTargetScroll += e.deltaY * 0.7;
+        retroTargetScroll = Math.max(0, Math.min(retroTargetScroll, retroScrollContainer.scrollHeight - retroScrollContainer.clientHeight));
+        if (!isRetroScrolling) {
+          isRetroScrolling = true;
+          requestAnimationFrame(smoothRetroScroll);
+        }
+      }, { passive: false });
+    }
+
+    // Handle Steam OpenID callback redirects (?steam_ok=1 or ?steam_err=...)
+    (function handleSteamCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const steamOk = params.get('steam_ok');
+      const steamErr = params.get('steam_err');
+      if (!steamOk && !steamErr) return;
+
+      // Clean URL without reloading
+      const cleanUrl = window.location.pathname;
+      history.replaceState(null, '', cleanUrl);
+
+      // Open settings on the Plateformes tab after profile loads
+      window.__openPlatformsTabOnLoad = steamOk ? 'ok' : (steamErr || 'error');
+    })();
+
     loadProfile();
   </script>
 </body>

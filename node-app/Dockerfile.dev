@@ -1,21 +1,20 @@
-# ─── Dockerfile Node.js – Mode Développement ────────────────────────────────
-FROM node:20-slim
+# ─── Dockerfile Node.js – Mode Développement ─────────────────────────────────
+# Node.js LTS latest (tag lts pointe toujours sur la dernière LTS stable)
+FROM node:24-alpine
 
-# Dépendances système pour les modules natifs (pg, bcrypt, etc.)
-RUN apt-get update && apt-get install -y \
+# ── Dépendances système (Alpine uses apk) ─────────────────────────────────────
+RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    curl
 
 WORKDIR /app
 
-# Copie uniquement les manifestes pour profiter du cache Docker
+# ── Pré-cache des dépendances npm ─────────────────────────────────────────────
 COPY package*.json ./
 RUN npm install
 
 EXPOSE 3000
 
-# La commande réelle est définie dans docker-compose (npm run dev)
 CMD ["npm", "run", "dev"]

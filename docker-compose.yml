@@ -70,6 +70,7 @@ services:
       LEPTOS_SITE_ROOT: "target/site"
       JWT_SECRET: ${JWT_SECRET}
       STEAM_API_KEY: ${STEAM_API_KEY}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3100}
     # Pas de ports exposés au host — accessible uniquement via node-app sur le réseau interne
     expose:
       - "3000"

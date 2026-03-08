@@ -12,7 +12,8 @@ pub fn GameCard(
         (unlocked_achievements as f64 / total_achievements as f64 * 100.0).round() as i32
     } else {
         0
-    };
+    }
+    .clamp(0, 100);
 
     let href = format!("/games/{}", id);
 

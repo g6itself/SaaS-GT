@@ -9,6 +9,7 @@ use crate::pages::{
     dashboard::DashboardPage,
     game_detail::GameDetailPage,
     landing::LandingPage,
+    leaderboard::LeaderboardPage,
     login::LoginPage,
     platform_connections::PlatformConnectionsPage,
     profile::ProfilePage,
@@ -33,6 +34,7 @@ pub fn App() -> impl IntoView {
                     <Route path=(StaticSegment("games"), WildcardSegment("id")) view=GameDetailPage/>
                     <Route path=StaticSegment("platforms") view=PlatformConnectionsPage/>
                     <Route path=StaticSegment("profile") view=ProfilePage/>
+                    <Route path=StaticSegment("leaderboard") view=LeaderboardPage/>
                     <Route path=WildcardSegment("any") view=NotFound/>
                 </Routes>
             </main>
@@ -44,7 +46,7 @@ pub fn App() -> impl IntoView {
 fn NotFound() -> impl IntoView {
     #[cfg(feature = "ssr")]
     {
-        let resp = leptos::context::expect_context::<leptos_actix::ResponseOptions>();
+        let resp = leptos::prelude::expect_context::<leptos_actix::ResponseOptions>();
         resp.set_status(actix_web::http::StatusCode::NOT_FOUND);
     }
 

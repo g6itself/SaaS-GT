@@ -1,24 +1,50 @@
 use leptos::prelude::*;
 
+fn percent_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() * 3);
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            b => out.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    out
+}
+
+fn entry_name(e: &serde_json::Value) -> String {
+    e["display_name"]
+        .as_str()
+        .or_else(|| e["username"].as_str())
+        .unwrap_or("—")
+        .to_string()
+}
+
+fn entry_username(e: &serde_json::Value) -> String {
+    e["username"].as_str().unwrap_or("").to_string()
+}
+
 #[component]
 pub fn LeaderboardPage() -> impl IntoView {
-    // Données mockées — à remplacer par un appel API Rust
-    let top3 = vec![
-        ("ShadowHunter", 1247, 87.3_f64, "🥇"),
-        ("TrophyMaster", 1189, 82.1_f64, "🥈"),
-        ("AchievR_Pro",  1056, 79.8_f64, "🥉"),
-    ];
-    let visible = vec![
-        (4,  "CompletionistX",  998, 76.4_f64),
-        (5,  "NightWolf_99",    934, 71.2_f64),
-        (6,  "SpeedRunner_VII", 887, 68.9_f64),
-    ];
-    let blurred = vec![
-        (7,  "PhantomAce",      821),
-        (8,  "LegendSeeker",    776),
-        (9,  "TrophyVault",     734),
-        (10, "AchievHunter",    698),
-    ];
+    let entries: RwSignal<Vec<serde_json::Value>> = RwSignal::new(vec![]);
+    let loading = RwSignal::new(true);
+
+    Effect::new(move |_| {
+        #[cfg(target_arch = "wasm32")]
+        leptos::task::spawn_local(async move {
+            let client = reqwest::Client::new();
+            match client.get("/api/leaderboard").send().await {
+                Ok(r) if r.status().is_success() => {
+                    if let Ok(data) = r.json::<Vec<serde_json::Value>>().await {
+                        entries.set(data);
+                    }
+                }
+                _ => {}
+            }
+            loading.set(false);
+        });
+    });
 
     view! {
         <div class="page-wrapper">
@@ -28,84 +54,178 @@ pub fn LeaderboardPage() -> impl IntoView {
                     <p class="page-subtitle">"Les meilleurs chasseurs de trophées de la plateforme"</p>
                 </div>
 
-                // ── Podium Top 3 ────────────────────────────────────────────────
-                <div class="podium">
-                    // #2 — Argent
-                    <div class="podium-card podium-silver">
-                        <div class="podium-crown">"🥈"</div>
-                        <div class="podium-rank">"#2"</div>
-                        <div class="podium-avatar silver-glow">"🎮"</div>
-                        <div class="podium-name">{top3[1].0}</div>
-                        <div class="podium-trophies">{top3[1].1}" trophées"</div>
-                        <div class="podium-pct">{format!("{:.1}%", top3[1].2)}" complétion"</div>
-                        <div class="podium-bar" style="height:100px;"></div>
-                    </div>
-                    // #1 — Or
-                    <div class="podium-card podium-gold">
-                        <div class="podium-crown">"👑"</div>
-                        <div class="podium-rank">"#1"</div>
-                        <div class="podium-avatar gold-glow">"🏆"</div>
-                        <div class="podium-name">{top3[0].0}</div>
-                        <div class="podium-trophies">{top3[0].1}" trophées"</div>
-                        <div class="podium-pct">{format!("{:.1}%", top3[0].2)}" complétion"</div>
-                        <div class="podium-bar" style="height:140px;"></div>
-                    </div>
-                    // #3 — Bronze
-                    <div class="podium-card podium-bronze">
-                        <div class="podium-crown">"🥉"</div>
-                        <div class="podium-rank">"#3"</div>
-                        <div class="podium-avatar bronze-glow">"⚡"</div>
-                        <div class="podium-name">{top3[2].0}</div>
-                        <div class="podium-trophies">{top3[2].1}" trophées"</div>
-                        <div class="podium-pct">{format!("{:.1}%", top3[2].2)}" complétion"</div>
-                        <div class="podium-bar" style="height:70px;"></div>
-                    </div>
-                </div>
-
-                // ── Tableau rangs 4-6 (visible) ─────────────────────────────────
-                <div class="leaderboard-table">
-                    <div class="table-header">
-                        <span>"Rang"</span>
-                        <span>"Joueur"</span>
-                        <span>"Trophées"</span>
-                        <span>"Complétion"</span>
-                    </div>
-                    {visible.iter().map(|(rank, name, trophies, pct)| {
-                        let rank = *rank;
-                        let trophies = *trophies;
-                        let pct = *pct;
-                        view! {
-                            <div class="table-row">
-                                <span class="rank-badge">"#"{rank}</span>
-                                <span class="player-name">{*name}</span>
-                                <span class="trophy-count">"🏆 "{trophies}</span>
-                                <span class="completion-pct">{format!("{:.1}%", pct)}</span>
+                {move || {
+                    if loading.get() {
+                        return view! {
+                            <div style="text-align:center;padding:64px;color:var(--text-secondary)">
+                                "Chargement..."
                             </div>
                         }
-                    }).collect_view()}
+                        .into_any();
+                    }
 
-                    // ── Rangs 7-10 : floutés ────────────────────────────────────
-                    <div class="blur-teaser">
-                        <div class="blur-rows">
-                            {blurred.iter().map(|(rank, name, trophies)| {
-                                let rank = *rank;
-                                let trophies = *trophies;
-                                view! {
-                                    <div class="table-row blurred-row">
-                                        <span class="rank-badge">"#"{rank}</span>
-                                        <span class="player-name">{*name}</span>
-                                        <span class="trophy-count">"🏆 "{trophies}</span>
-                                        <span class="completion-pct">"??%"</span>
-                                    </div>
-                                }
-                            }).collect_view()}
+                    let data = entries.get();
+
+                    if data.is_empty() {
+                        return view! {
+                            <div class="empty-state">
+                                <p>"Aucun joueur pour le moment."</p>
+                                <a href="/register" class="btn btn-primary">
+                                    "Créer un compte gratuit"
+                                </a>
+                            </div>
+                        }
+                        .into_any();
+                    }
+
+                    let top3: Vec<serde_json::Value> = data.iter().take(3).cloned().collect();
+                    let visible: Vec<serde_json::Value> =
+                        data.iter().skip(3).take(3).cloned().collect();
+                    let blurred: Vec<serde_json::Value> =
+                        data.iter().skip(6).take(4).cloned().collect();
+
+                    view! {
+                        // ── Podium Top 3 (order: silver, gold, bronze) ──────────
+                        <div class="podium">
+                            {[1usize, 0, 2]
+                                .into_iter()
+                                .filter_map(|i| top3.get(i).cloned())
+                                .map(|e| {
+                                    let rank = e["rank"].as_i64().unwrap_or(0) as usize;
+                                    let name = entry_name(&e);
+                                    let username = entry_username(&e);
+                                    let trophies = e["total_achievements"].as_i64().unwrap_or(0);
+                                    let pct = e["completion_avg"].as_f64().unwrap_or(0.0);
+                                    let profile_url = format!(
+                                        "/profile?u={}",
+                                        percent_encode(&username)
+                                    );
+                                    let (card_class, avatar_class, crown, height) = match rank {
+                                        1 => (
+                                            "podium-card podium-gold",
+                                            "podium-avatar gold-glow",
+                                            "👑",
+                                            "140px",
+                                        ),
+                                        2 => (
+                                            "podium-card podium-silver",
+                                            "podium-avatar silver-glow",
+                                            "🥈",
+                                            "100px",
+                                        ),
+                                        _ => (
+                                            "podium-card podium-bronze",
+                                            "podium-avatar bronze-glow",
+                                            "🥉",
+                                            "70px",
+                                        ),
+                                    };
+                                    let medal = match rank {
+                                        1 => "🥇",
+                                        2 => "🥈",
+                                        _ => "🥉",
+                                    };
+                                    view! {
+                                        <a
+                                            href=profile_url
+                                            class=card_class
+                                            style="text-decoration:none;color:inherit;cursor:pointer"
+                                        >
+                                            <div class="podium-crown">{crown}</div>
+                                            <div class="podium-rank">"#"{rank}</div>
+                                            <div class=avatar_class>{medal}</div>
+                                            <div class="podium-name">{name}</div>
+                                            <div class="podium-trophies">
+                                                {trophies}
+                                                " trophées"
+                                            </div>
+                                            <div class="podium-pct">
+                                                {format!("{:.1}%", pct)}
+                                                " complétion"
+                                            </div>
+                                            <div
+                                                class="podium-bar"
+                                                style=format!("height:{}", height)
+                                            ></div>
+                                        </a>
+                                    }
+                                })
+                                .collect_view()}
                         </div>
-                        <div class="blur-overlay">
-                            <p>"Inscrivez-vous pour voir la suite"</p>
-                            <a href="/register" class="btn-primary">"Créer un compte gratuit"</a>
+
+                        // ── Table rangs 4–6 (visible) ────────────────────────────
+                        <div class="leaderboard-table">
+                            <div class="table-header">
+                                <span>"Rang"</span>
+                                <span>"Joueur"</span>
+                                <span>"Trophées"</span>
+                                <span>"Complétion"</span>
+                            </div>
+                            {visible
+                                .into_iter()
+                                .map(|e| {
+                                    let rank = e["rank"].as_i64().unwrap_or(0);
+                                    let name = entry_name(&e);
+                                    let username = entry_username(&e);
+                                    let trophies = e["total_achievements"].as_i64().unwrap_or(0);
+                                    let pct = e["completion_avg"].as_f64().unwrap_or(0.0);
+                                    let profile_url = format!(
+                                        "/profile?u={}",
+                                        percent_encode(&username)
+                                    );
+                                    view! {
+                                        <a
+                                            href=profile_url
+                                            class="table-row"
+                                            style="text-decoration:none;color:inherit;cursor:pointer"
+                                        >
+                                            <span class="rank-badge">"#"{rank}</span>
+                                            <span class="player-name">{name}</span>
+                                            <span class="trophy-count">"🏆 "{trophies}</span>
+                                            <span class="completion-pct">
+                                                {format!("{:.1}%", pct)}
+                                            </span>
+                                        </a>
+                                    }
+                                })
+                                .collect_view()}
+
+                            // ── Rangs 7–10 : floutés ─────────────────────────────
+                            <div class="blur-teaser">
+                                <div class="blur-rows">
+                                    {blurred
+                                        .into_iter()
+                                        .map(|e| {
+                                            let rank = e["rank"].as_i64().unwrap_or(0);
+                                            let name = entry_name(&e);
+                                            let trophies = e["total_achievements"]
+                                                .as_i64()
+                                                .unwrap_or(0);
+                                            view! {
+                                                <div class="table-row blurred-row">
+                                                    <span class="rank-badge">"#"{rank}</span>
+                                                    <span class="player-name">{name}</span>
+                                                    <span class="trophy-count">
+                                                        "🏆 "
+                                                        {trophies}
+                                                    </span>
+                                                    <span class="completion-pct">"??%"</span>
+                                                </div>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </div>
+                                <div class="blur-overlay">
+                                    <p>"Inscrivez-vous pour voir la suite"</p>
+                                    <a href="/register" class="btn-primary">
+                                        "Créer un compte gratuit"
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    }
+                    .into_any()
+                }}
             </div>
         </div>
     }

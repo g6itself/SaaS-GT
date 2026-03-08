@@ -12,9 +12,10 @@ pub fn LoginPage() -> impl IntoView {
         loading.set(true);
         error.set(None);
 
+        #[cfg(target_arch = "wasm32")]
+        {
         let email_val = email.get();
         let password_val = password.get();
-
         leptos::task::spawn_local(async move {
             let client = reqwest::Client::new();
             let resp = client
@@ -30,30 +31,43 @@ pub fn LoginPage() -> impl IntoView {
 
             match resp {
                 Ok(r) if r.status().is_success() => {
-                    // Stocker le token et rediriger
                     if let Ok(body) = r.json::<serde_json::Value>().await {
                         if let Some(token) = body["token"].as_str() {
-                            // Stocker dans localStorage
-                            let window = web_sys::window().unwrap();
-                            let storage = window.local_storage().unwrap().unwrap();
+                            let Some(window) = leptos::web_sys::window() else {
+                                error.set(Some("Environnement navigateur indisponible".into()));
+                                return;
+                            };
+                            let Ok(Some(storage)) = window.local_storage() else {
+                                error.set(Some("Stockage local indisponible".into()));
+                                return;
+                            };
                             let _ = storage.set_item("auth_token", token);
-                            // Rediriger vers le dashboard
+                            if let Some(username) = body["user"]["username"].as_str() {
+                                let _ = storage.set_item("auth_user", username);
+                            }
                             let _ = window.location().set_href("/dashboard");
+                        } else {
+                            error.set(Some("Reponse serveur invalide".into()));
                         }
+                    } else {
+                        error.set(Some("Reponse serveur invalide".into()));
                     }
                 }
                 Ok(r) => {
-                    let body = r.json::<serde_json::Value>().await.ok();
-                    let msg = body
+                    let msg = r
+                        .json::<serde_json::Value>()
+                        .await
+                        .ok()
                         .and_then(|b| b["error"].as_str().map(String::from))
                         .unwrap_or_else(|| "Erreur de connexion".into());
                     error.set(Some(msg));
                 }
-                Err(e) => {
-                    error.set(Some(format!("Erreur reseau: {}", e)));
+                Err(_) => {
+                    error.set(Some("Erreur reseau, veuillez reessayer".into()));
                 }
             }
         });
+        } // cfg(target_arch = "wasm32")
     };
 
     view! {

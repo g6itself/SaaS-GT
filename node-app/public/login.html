@@ -2,6 +2,12 @@
 <html lang="fr" class="dark">
 
 <head>
+    <style>
+        html,
+        body {
+            background: #000 !important;
+        }
+    </style>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Connexion — Glorious Trophée</title>
@@ -12,6 +18,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
         rel="stylesheet">
+    <link rel="stylesheet" href="/transitions.css">
+    <script src="/transitions.js" defer></script>
     <script>
         tailwind.config = {
             theme: {
@@ -150,20 +158,16 @@
             transition: opacity 1s ease;
         }
 
-        @keyframes fadeInPopup {
-            from {
-                opacity: 0;
-                transform: translateY(-8px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .dynamic-banner {
+            display: grid;
+            grid-template-rows: 0fr;
+            opacity: 0;
+            transition: grid-template-rows 0.4s ease-out, opacity 0.4s ease-out;
         }
 
-        .anim-popup {
-            animation: fadeInPopup 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .dynamic-banner.show {
+            grid-template-rows: 1fr;
+            opacity: 1;
         }
 
         .form-view.active {
@@ -195,8 +199,8 @@
                     class="hover:text-white transition-colors hidden sm:block auth-hidden">Mon Espace</a>
                 <a id="nav-login" href="/login.html"
                     class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all border border-white/5 hover:scale-105 active:scale-95">Connexion</a>
-                <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]"
-                    onclick="logout()">Déconnexion</button>
+                <button id="nav-logout"
+                    class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]">Déconnexion</button>
             </div>
         </div>
     </nav>
@@ -222,8 +226,8 @@
 
                 <!-- Tabs -->
                 <div class="flex border-b border-border bg-black/50">
-                    <div class="tab-btn active" onclick="switchTab('login')">Connexion</div>
-                    <div class="tab-btn" onclick="switchTab('register')">Rejoindre le Panthéon</div>
+                    <div class="tab-btn active" id="tab-login">Connexion</div>
+                    <div class="tab-btn" id="tab-register">Rejoindre le Panthéon</div>
                 </div>
 
                 <div id="form-wrapper"
@@ -247,13 +251,17 @@
                                         placeholder="••••••••" autocomplete="current-password" required>
                                     <i data-lucide="eye"
                                         class="w-4 h-4 text-subtle absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer hover:text-white"
-                                        onclick="togglePwd('login-pwd', this)"></i>
+                                        id="toggle-login-pwd"></i>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="login-err"
-                            class="hidden mt-6 anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                        <div id="login-err-wrapper" class="dynamic-banner mt-6">
+                            <div class="overflow-hidden">
+                                <div id="login-err"
+                                    class="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                                </div>
+                            </div>
                         </div>
 
                         <button type="submit" class="btn-primary mt-8 flex items-center justify-center gap-2">
@@ -262,7 +270,7 @@
                     </form>
 
                     <!-- Vue Inscription -->
-                    <form id="form-register" class="form-view p-6 sm:p-8" onsubmit="handleRegister(event)">
+                    <form id="form-register" class="form-view p-6 sm:p-8">
                         <div class="space-y-4">
                             <div>
                                 <label class="block text-[12px] font-medium text-subtle mb-1.5 ml-1">Pseudonyme
@@ -284,14 +292,18 @@
                                         placeholder="12 caractères min. + 1 caractère spécial" required>
                                     <i data-lucide="eye"
                                         class="w-4 h-4 text-subtle absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer hover:text-white"
-                                        onclick="togglePwd('reg-pwd', this)"></i>
+                                        id="toggle-reg-pwd"></i>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Zone d'erreur -->
-                        <div id="reg-err"
-                            class="hidden mt-6 anim-popup px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                        <div id="reg-err-wrapper" class="dynamic-banner mt-6">
+                            <div class="overflow-hidden">
+                                <div id="reg-err"
+                                    class="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[13px] font-medium leading-relaxed text-center shadow-sm">
+                                </div>
+                            </div>
                         </div>
 
                         <p class="text-[11px] text-subtle mt-5 mb-1 leading-relaxed text-center">
@@ -336,12 +348,20 @@
     <script>
         lucide.createIcons();
 
+        // Ajout des Event Listeners pour respecter la Content Security Policy (script-src-attr 'none')
+        document.getElementById('nav-logout').addEventListener('click', logout);
+        document.getElementById('tab-login').addEventListener('click', (e) => switchTab(e, 'login'));
+        document.getElementById('tab-register').addEventListener('click', (e) => switchTab(e, 'register'));
+        document.getElementById('toggle-login-pwd').addEventListener('click', function () { togglePwd('login-pwd', this); });
+        document.getElementById('toggle-reg-pwd').addEventListener('click', function () { togglePwd('reg-pwd', this); });
+        document.getElementById('form-register').addEventListener('submit', handleRegister);
+
         // Déjà connecté → aller au profil
         if (localStorage.getItem('auth_token')) {
             location.href = '/profile.html';
         }
 
-        function switchTab(tab) {
+        function switchTab(event, tab) {
             const btn = event.currentTarget;
             if (btn && btn.classList.contains('active')) return;
 
@@ -403,11 +423,12 @@
             e.preventDefault();
             const btn = e.target.querySelector('button[type="submit"]');
             const errDiv = document.getElementById('login-err');
+            const errWrapper = document.getElementById('login-err-wrapper');
             const originalHtml = btn.innerHTML;
 
             btn.innerHTML = '<div class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin inline-block mr-2"></div>Connexion...';
             btn.disabled = true;
-            errDiv.classList.add('hidden');
+            errWrapper.classList.remove('show');
 
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-pwd').value;
@@ -427,12 +448,12 @@
                     return;
                 }
                 errDiv.textContent = 'Email ou mot de passe incorrect.';
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
             } catch (err) {
                 errDiv.textContent = err.name === 'AbortError'
                     ? 'Le serveur ne répond pas. Réessayez plus tard.'
                     : 'Erreur réseau. Veuillez réessayer.';
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
             } finally {
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
@@ -444,10 +465,11 @@
         async function handleRegister(e) {
             e.preventDefault();
             const errDiv = document.getElementById('reg-err');
+            const errWrapper = document.getElementById('reg-err-wrapper');
             const btn = e.target.querySelector('button[type="submit"]');
             const originalBtnHtml = btn.innerHTML;
 
-            errDiv.classList.add('hidden');
+            errWrapper.classList.remove('show');
             errDiv.innerHTML = '';
 
             const user = document.getElementById('reg-user').value.trim();
@@ -458,24 +480,24 @@
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 errDiv.innerHTML = "L'adresse email n'a pas un format valide.";
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
                 return;
             }
 
             // Validation pseudo
             if (user.length < 2) {
                 errDiv.innerHTML = 'Le pseudo doit contenir au moins 2 caractères.';
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
                 return;
             }
             if (user.length > 15) {
                 errDiv.innerHTML = 'Le pseudo ne peut pas dépasser 15 caractères.';
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
                 return;
             }
             if (!/^[a-zA-Z0-9_-]+$/.test(user)) {
                 errDiv.innerHTML = 'Le pseudo ne peut contenir que des lettres, chiffres, tirets (<strong>-</strong>) et underscores (<strong>_</strong>). Pas d\'espaces.';
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
                 return;
             }
 
@@ -483,7 +505,7 @@
             const specialCharRegex = /[!@#$%^&*(),.?":{}|<>_+\-=\[\]\\\/]/;
             if (pwd.length < 12 || !specialCharRegex.test(pwd)) {
                 errDiv.innerHTML = 'Le mot de passe doit contenir <strong>au moins 12 caractères</strong> et <strong>un caractère spécial</strong>.';
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
                 return;
             }
 
@@ -505,12 +527,12 @@
                     return;
                 }
                 errDiv.textContent = data.error || data.message || "Erreur lors de l'inscription.";
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
             } catch (err) {
                 errDiv.textContent = err.name === 'AbortError'
                     ? "Le serveur ne répond pas. Réessayez plus tard."
                     : "Erreur réseau. Veuillez réessayer.";
-                errDiv.classList.remove('hidden');
+                errWrapper.classList.add('show');
             } finally {
                 btn.innerHTML = originalBtnHtml;
                 btn.disabled = false;
@@ -543,26 +565,46 @@
             form.addEventListener('change', (e) => hideCustomError(e.target));
         });
 
-        function getValidationTarget(input) {
-            if (input.parentElement.classList.contains('relative') || input.parentElement.tagName === 'LABEL') {
-                return input.parentElement;
+        function getFieldParent(input) {
+            let el = input;
+            while (el && el.parentElement && el.parentElement.tagName !== 'FORM' && !el.parentElement.classList.contains('space-y-4') && !el.parentElement.classList.contains('space-y-5')) {
+                el = el.parentElement;
             }
-            return input;
+            return el;
         }
 
         function showCustomError(input, msg) {
             hideCustomError(input);
+            const wrapper = document.createElement('div');
+            wrapper.className = 'custom-validation-popup grid transition-all duration-300 ease-out z-10';
+            wrapper.style.gridTemplateRows = '0fr';
+            wrapper.style.opacity = '0';
+
+            const inner = document.createElement('div');
+            inner.className = 'overflow-hidden';
+
             const err = document.createElement('div');
-            err.className = 'custom-validation-popup anim-popup mt-2.5 px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 text-[12px] font-medium leading-relaxed shadow-sm w-full flex gap-2.5 items-start z-10 relative';
+            err.className = 'mt-2.5 px-3.5 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 text-[12px] font-medium leading-relaxed shadow-sm w-full flex gap-2.5 items-start relative';
             err.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5 text-red-400"></i><span class="opacity-90">${msg}</span>`;
-            getValidationTarget(input).insertAdjacentElement('afterend', err);
+
+            inner.appendChild(err);
+            wrapper.appendChild(inner);
+
+            getFieldParent(input).appendChild(wrapper);
             if (window.lucide) lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                wrapper.style.gridTemplateRows = '1fr';
+                wrapper.style.opacity = '1';
+            });
         }
 
         function hideCustomError(input) {
-            const target = getValidationTarget(input);
-            if (target.nextElementSibling && target.nextElementSibling.classList.contains('custom-validation-popup')) {
-                target.nextElementSibling.remove();
+            const wrapper = getFieldParent(input).querySelector('.custom-validation-popup');
+            if (wrapper) {
+                wrapper.style.gridTemplateRows = '0fr';
+                wrapper.style.opacity = '0';
+                setTimeout(() => wrapper.remove(), 300);
             }
         }
     </script>

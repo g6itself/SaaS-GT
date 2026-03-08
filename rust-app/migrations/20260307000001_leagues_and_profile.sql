@@ -6,27 +6,21 @@
 -- ── 1. Enums ─────────────────────────────────────────────────────────────────
 
 -- Les 10 ligues dans l'ordre croissant
-CREATE TYPE league_tier AS ENUM (
-    'Orbit',
-    'Horizon',
-    'Nebula',
-    'Pulsar',
-    'Zenith',
-    'Eclipse',
-    'Supernova',
-    'Apex',
-    'Quasar',
-    'Singularity'
-);
+DO $$ BEGIN
+    CREATE TYPE league_tier AS ENUM (
+        'Orbit', 'Horizon', 'Nebula', 'Pulsar', 'Zenith',
+        'Eclipse', 'Supernova', 'Apex', 'Quasar', 'Singularity'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Rareté des succès (détermine la valeur en points)
-CREATE TYPE achievement_rarity AS ENUM (
-    'common',       --    5 pts  | > 50% des joueurs
-    'rare',         --   25 pts  | 10–50%
-    'epic',         --  100 pts  | 1–10%
-    'legendary',    --  500 pts  | 0.1–1%
-    'mythic'        -- 2000 pts  | < 0.1%
-);
+DO $$ BEGIN
+    CREATE TYPE achievement_rarity AS ENUM (
+        'common', 'rare', 'epic', 'legendary', 'mythic'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ── 2. Extension table users ─────────────────────────────────────────────────
 
@@ -51,8 +45,10 @@ ALTER TABLE users
     ADD COLUMN IF NOT EXISTS last_login_at      TIMESTAMPTZ;
 
 -- Unicité du username (renforcement)
-ALTER TABLE users
-    ADD CONSTRAINT users_username_unique UNIQUE (username);
+DO $$ BEGIN
+    ALTER TABLE users ADD CONSTRAINT users_username_unique UNIQUE (username);
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
 
 -- ── 3. Extension table achievements ─────────────────────────────────────────
 

@@ -8,6 +8,9 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+// Faire confiance au proxy Docker/reverse-proxy pour obtenir la vraie IP client
+app.set('trust proxy', 1);
+
 const PORT = parseInt(process.env.PORT) || 3000;
 const RUST_API_URL = process.env.RUST_API_URL || 'http://rust-app:3000';
 
@@ -41,9 +44,10 @@ app.use(cors({
 // Rate limiting global
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Trop de requêtes. Réessayez dans 15 minutes.' },
 }));
 
 // Rate limiting strict pour les endpoints d'authentification

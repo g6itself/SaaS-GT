@@ -1,36 +1,37 @@
-# ─── Dockerfile Rust + Leptos – Mode Developpement ────────────────────────────
+# ─── Dockerfile Rust + Leptos – Mode Développement ──────────────────────────
+# Rust latest + Node.js LTS latest (via NodeSource)
 FROM rust:latest
 
-# Dependances systeme
+# ── Dépendances système ──────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     libpq-dev \
     curl \
     git \
-    nodejs \
-    npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Cible WASM pour Leptos frontend
+# ── Node.js LTS latest via NodeSource ───────────────────────────────────────
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Cibles Rust ─────────────────────────────────────────────────────────────
 RUN rustup target add wasm32-unknown-unknown
 
-# cargo-leptos : build tool pour Leptos (compile server + WASM)
+# ── Outils Cargo (installés séparément pour le cache Docker) ────────────────
 RUN cargo install cargo-leptos --locked
-
-# sqlx-cli : migrations PostgreSQL
 RUN cargo install sqlx-cli --no-default-features --features postgres
+RUN cargo install cargo-watch
 
-# sass pour la compilation des styles
+# ── Sass (compilation styles) ───────────────────────────────────────────────
 RUN npm install -g sass
 
 WORKDIR /app
 
-# Pre-compile les dependances
-COPY Cargo.toml Cargo.lock* ./
-RUN mkdir src && echo 'fn main() {}' > src/main.rs && echo '' > src/lib.rs \
-    && cargo build 2>/dev/null || true \
-    && rm -rf src
+# Note : les sources sont montées en volume (./rust-app:/app)
+# Le pré-cache Cargo est omis — il nécessite Cargo.toml qui n'existe
+# pas encore dans le contexte de build (fichier monté au runtime).
 
 EXPOSE 3000 3001
 

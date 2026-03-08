@@ -9,6 +9,102 @@ fn get_steam_api_key() -> String {
     std::env::var("STEAM_API_KEY").expect("STEAM_API_KEY doit etre definie")
 }
 
+// ─── Helpers publics ────────────────────────────────────────────────────────
+
+/// Encode un caractère pour l'utiliser dans une valeur de paramètre d'URL.
+fn percent_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (b as char).to_string()
+            }
+            _ => format!("%{:02X}", b),
+        })
+        .collect()
+}
+
+/// Construit l'URL de redirection Steam OpenID 2.0.
+pub fn steam_openid_url(return_to: &str, realm: &str) -> String {
+    format!(
+        "https://steamcommunity.com/openid/login\
+         ?openid.ns={ns}\
+         &openid.claimed_id={ci}\
+         &openid.identity={id}\
+         &openid.mode=checkid_setup\
+         &openid.return_to={rt}\
+         &openid.realm={rl}",
+        ns = percent_encode("http://specs.openid.net/auth/2.0"),
+        ci = percent_encode("http://specs.openid.net/auth/2.0/identifier_select"),
+        id = percent_encode("http://specs.openid.net/auth/2.0/identifier_select"),
+        rt = percent_encode(return_to),
+        rl = percent_encode(realm),
+    )
+}
+
+/// Vérifie la réponse OpenID auprès de Steam et retourne le SteamID64.
+pub async fn verify_steam_openid(
+    params: &std::collections::HashMap<String, String>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Remplacer openid.mode par check_authentication
+    let mut verify_params = params.clone();
+    verify_params.insert(
+        "openid.mode".to_string(),
+        "check_authentication".to_string(),
+    );
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post("https://steamcommunity.com/openid/login")
+        .form(&verify_params)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    if !resp.contains("is_valid:true") {
+        return Err("Vérification Steam OpenID échouée".into());
+    }
+
+    // Extraire le SteamID64 depuis claimed_id
+    // Format : https://steamcommunity.com/openid/id/76561198XXXXXXXXX
+    let claimed_id = params
+        .get("openid.claimed_id")
+        .ok_or("claimed_id manquant dans la réponse Steam")?;
+
+    let steam_id = claimed_id
+        .rsplit('/')
+        .next()
+        .ok_or("Format de claimed_id invalide")?
+        .to_string();
+
+    // Valider que c'est bien un entier 64-bit
+    steam_id
+        .parse::<u64>()
+        .map_err(|_| "SteamID invalide (pas un entier 64-bit)")?;
+
+    Ok(steam_id)
+}
+
+/// Récupère le nom d'affichage Steam (personaname) via l'API.
+/// Utilise la clé API du serveur. Retourne l'ID si la clé est absente ou si l'appel échoue.
+pub async fn fetch_steam_player_summary(steam_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let api_key = std::env::var("STEAM_API_KEY").unwrap_or_default();
+    if api_key.is_empty() {
+        return Ok(steam_id.to_string());
+    }
+    let url = format!(
+        "{}/ISteamUser/GetPlayerSummaries/v2/?key={}&steamids={}",
+        STEAM_API_BASE, api_key, steam_id
+    );
+    let client = reqwest::Client::new();
+    let resp: serde_json::Value = client.get(&url).send().await?.json().await?;
+    let name = resp["response"]["players"][0]["personaname"]
+        .as_str()
+        .unwrap_or(steam_id)
+        .to_string();
+    Ok(name)
+}
+
 /// Recupere la liste des jeux possedes par un utilisateur Steam
 async fn fetch_owned_games(
     steam_id: &str,

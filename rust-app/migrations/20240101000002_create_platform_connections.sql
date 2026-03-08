@@ -1,5 +1,9 @@
 -- Type enum pour les plateformes supportees
-CREATE TYPE platform_type AS ENUM ('steam', 'gog', 'epic');
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'platform_type') THEN
+        CREATE TYPE platform_type AS ENUM ('steam', 'gog', 'epic');
+    END IF;
+END $$;
 
 -- Connexions aux plateformes gaming
 CREATE TABLE IF NOT EXISTS platform_connections (

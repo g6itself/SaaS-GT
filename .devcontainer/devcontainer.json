@@ -1,28 +1,98 @@
 {
-  "name": "Dev Env (Rust + Node + PostgreSQL)",
+  "name": "Glorious Trophée — Dev Environment",
+
+  // Utilise le docker-compose.yml à la racine du projet
+  // Le service rust-app contient Rust + Node.js LTS
   "dockerComposeFile": "../docker-compose.yml",
   "service": "rust-app",
   "workspaceFolder": "/app",
 
+  // ── Extensions VS Code ──────────────────────────────────────────────────────
   "customizations": {
     "vscode": {
       "extensions": [
+        // Rust
         "rust-lang.rust-analyzer",
         "tamasfe.even-better-toml",
-        "vadimcn.vscode-lldb",
         "serayuzgur.crates",
+        "vadimcn.vscode-lldb",
+
+        // Base de données
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+
+        // Docker & DevOps
         "ms-azuretools.vscode-docker",
-        "dbaeumer.vscode-eslint"
+
+        // JavaScript / Node.js
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+
+        // Qualité / DX
+        "streetsidesoftware.code-spell-checker",
+        "usernamehw.errorlens",
+        "eamodio.gitlens",
+        "github.vscode-pull-request-github"
       ],
+
       "settings": {
-        "rust-analyzer.cargo.buildScripts.enable": true,
+        // ── Rust Analyzer ─────────────────────────────────────────────────────
         "rust-analyzer.checkOnSave.command": "clippy",
-        "editor.formatOnSave": true
+        "rust-analyzer.cargo.features": "all",
+        "rust-analyzer.inlayHints.parameterHints.enable": true,
+        "rust-analyzer.inlayHints.typeHints.enable": true,
+
+        // ── Éditeur ───────────────────────────────────────────────────────────
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+
+        // ── SQLTools — connexion PostgreSQL ───────────────────────────────────
+        "sqltools.connections": [
+          {
+            "name": "dev_postgres",
+            "driver": "PostgreSQL",
+            "server": "postgres",
+            "port": 5432,
+            "database": "${env:POSTGRES_DB}",
+            "username": "${env:POSTGRES_USER}",
+            "password": "${env:POSTGRES_PASSWORD}"
+          }
+        ],
+
+        // ── Terminal ──────────────────────────────────────────────────────────
+        "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
   },
 
-  // Garde tous les autres services (postgres, node-app) actifs
-  "runServices": ["postgres", "rust-app", "node-app"],
-  "shutdownAction": "stopCompose"
+  // ── Ports à exposer vers la machine hôte ───────────────────────────────────
+  "forwardPorts": [3000, 3001, 3100, 5432, 5050],
+  "portsAttributes": {
+    "3000": { "label": "Leptos SSR", "onAutoForward": "notify" },
+    "3001": { "label": "Leptos HMR", "onAutoForward": "silent" },
+    "3100": { "label": "Node.js API", "onAutoForward": "notify" },
+    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "5050": { "label": "pgAdmin", "onAutoForward": "notify" }
+  },
+
+  // ── Commandes post-création ────────────────────────────────────────────────
+  "postCreateCommand": "rustup target add wasm32-unknown-unknown && cargo fetch",
+
+  // ── Variables d'environnement injectées dans le container ──────────────────
+  "remoteEnv": {
+    "RUST_LOG": "debug",
+    "RUST_BACKTRACE": "1"
+  },
+
+  // ── Utilisateur dans le container ─────────────────────────────────────────
+  "remoteUser": "root"
 }

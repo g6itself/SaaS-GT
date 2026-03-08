@@ -10,7 +10,8 @@ pub fn ProgressBar(
         (value as f64 / max as f64 * 100.0).round() as i32
     } else {
         0
-    };
+    }
+    .clamp(0, 100);
 
     view! {
         <div class="progress-container">

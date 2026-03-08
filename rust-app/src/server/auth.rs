@@ -2,7 +2,7 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -29,9 +29,24 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, argon2::passw
         .is_ok())
 }
 
+/// Retourne le secret JWT — panique en production si non défini
+fn jwt_secret() -> String {
+    match std::env::var("JWT_SECRET") {
+        Ok(s) if !s.is_empty() => s,
+        _ => {
+            if cfg!(debug_assertions) {
+                tracing::warn!("JWT_SECRET non defini — utilisation du secret de dev (dangereux)");
+                "dev-secret-change-me".into()
+            } else {
+                panic!("JWT_SECRET doit etre defini en production")
+            }
+        }
+    }
+}
+
 /// Genere un JWT pour un utilisateur
 pub fn create_token(user_id: Uuid, email: &str) -> Result<String, jsonwebtoken::errors::Error> {
-    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "dev-secret-change-me".into());
+    let secret = jwt_secret();
     let expiration_hours: u64 = std::env::var("JWT_EXPIRATION_HOURS")
         .unwrap_or_else(|_| "24".into())
         .parse()
@@ -49,7 +64,7 @@ pub fn create_token(user_id: Uuid, email: &str) -> Result<String, jsonwebtoken::
     };
 
     encode(
-        &Header::default(),
+        &Header::new(Algorithm::HS256),
         &claims,
         &EncodingKey::from_secret(secret.as_bytes()),
     )
@@ -57,12 +72,14 @@ pub fn create_token(user_id: Uuid, email: &str) -> Result<String, jsonwebtoken::
 
 /// Valide un JWT et retourne les claims
 pub fn validate_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
-    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "dev-secret-change-me".into());
+    let secret = jwt_secret();
+    let mut validation = Validation::new(Algorithm::HS256);
+    validation.validate_exp = true;
 
     let token_data = decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),
-        &Validation::default(),
+        &validation,
     )?;
 
     Ok(token_data.claims)

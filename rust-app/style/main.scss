@@ -100,6 +100,23 @@ a {
 
 .btn-logout {
     color: var(--danger) !important;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-family: inherit;
+    padding: 0;
+    &:hover { opacity: 0.8; }
+}
+
+.nav-username {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 4px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
 }
 
 /* ─── Landing ───────────────────────────────────────────────────────────── */
@@ -450,6 +467,67 @@ hr {
     max-width: 900px;
     margin: 0 auto;
     padding: 32px 24px;
+}
+
+/* ─── Form Validation ───────────────────────────────────────────────────── */
+.field-error {
+    display: block;
+    color: var(--danger);
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.field-success {
+    display: block;
+    color: var(--success);
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.field-hint {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.form-group input.valid {
+    border-color: var(--success);
+}
+
+.form-group input.invalid {
+    border-color: var(--danger);
+}
+
+.password-rules {
+    list-style: none;
+    margin-top: 6px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    li {
+        font-size: 0.8rem;
+        padding-left: 16px;
+        position: relative;
+
+        &::before {
+            content: '○';
+            position: absolute;
+            left: 0;
+        }
+    }
+
+    .rule-ok {
+        color: var(--success);
+        &::before { content: '✓'; }
+    }
+
+    .rule-fail {
+        color: var(--danger);
+        &::before { content: '✗'; }
+    }
 }
 
 /* ─── Responsive ────────────────────────────────────────────────────────── */

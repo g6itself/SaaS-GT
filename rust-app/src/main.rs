@@ -54,6 +54,7 @@ async fn main() -> std::io::Result<()> {
                     .configure(api::games::configure)
                     .configure(api::achievements::configure)
                     .configure(api::leaderboard::configure)
+                    .configure(api::retro_consoles::configure)
                     .configure(api::users::configure),
             )
             // Fichiers statiques Leptos

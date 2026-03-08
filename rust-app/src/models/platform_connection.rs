@@ -27,6 +27,11 @@ pub struct ConnectPlatformRequest {
     pub access_token: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct UpdateApikeyRequest {
+    pub access_token: String,
+}
+
 /// Vue publique d'une connexion plateforme
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformConnectionPublic {

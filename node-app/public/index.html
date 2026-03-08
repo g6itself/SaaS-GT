@@ -2,6 +2,12 @@
 <html lang="fr" class="dark">
 
 <head>
+  <style>
+    html,
+    body {
+      background: #000 !important;
+    }
+  </style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Glorious Trophée — Panthéon</title>
@@ -12,6 +18,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="/transitions.css">
+  <script src="/transitions.js" defer></script>
   <script>
     tailwind.config = {
       theme: {
@@ -213,14 +221,23 @@
           class="hover:text-white transition-colors hidden sm:block auth-hidden">Mon Espace</a>
         <a id="nav-login" href="/login.html"
           class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 border border-white/5">Connexion</a>
-        <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]"
-          onclick="logout()">Déconnexion</button>
+        <button id="nav-logout"
+          class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]">Déconnexion</button>
       </div>
     </div>
   </nav>
 
   <!-- Main Content -->
   <main class="w-full max-w-6xl mx-auto px-6 pt-28 relative z-10 flex-grow flex flex-col h-full overflow-hidden">
+
+    <!-- Hero Intro -->
+    <div class="mb-10 text-center stagger-item" style="animation-delay: 0.05s;">
+      <p class="text-lg md:text-xl text-white/80 max-w-4xl mx-auto leading-relaxed">
+        Partagez votre collection de succès et votre bibliothèque de jeux, suivez votre progression et
+        fixez-vous vos propres objectifs de score ou de complétion. Nous vous accompagnons avec des indicateurs précis
+        pour vous aider à les atteindre !
+      </p>
+    </div>
 
     <!-- Hero Leaderboard -->
     <div class="mb-10 text-center stagger-item" style="animation-delay: 0.1s;">
@@ -243,8 +260,8 @@
       </div>
 
       <!-- Leaderboard dynamique — rempli par JS -->
-      <div id="leaderboard-list" class="flex-1 overflow-y-auto pr-2 pb-16"
-        style="mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 85%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 85%, transparent 100%);">
+      <div id="leaderboard-list" class="flex-1 overflow-y-auto pr-2 pb-16 pt-12"
+        style="mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);">
         <!-- État de chargement -->
         <div id="leaderboard-loading" class="flex flex-col items-center justify-center py-20 gap-4 stagger-item"
           style="animation-delay: 0.4s;">
@@ -363,7 +380,7 @@
       const encodedUser = encodeURIComponent(e.username);
 
       return `
-        <div class="leaderboard-row stagger-item group" style="animation-delay:${delay}s" onclick="location.href='/profile.html?u=${encodedUser}'" role="link" tabindex="0" onkeydown="if(event.key==='Enter')location.href='/profile.html?u=${encodedUser}'">
+        <div class="leaderboard-row stagger-item group" style="animation-delay:${delay}s" data-url="/profile.html?u=${encodedUser}" role="link" tabindex="0">
           <div class="text-center ${rankClass} num">${e.rank}</div>
           <div class="flex items-center gap-4 min-w-0">
             <div class="w-12 h-12 rounded-full bg-surface border border-white/10 flex items-center justify-center overflow-hidden shrink-0 ${avatarClass} transition-transform group-hover:scale-105">
@@ -430,9 +447,10 @@
           <div class="text-center py-12 text-[13px] text-subtle flex flex-col items-center gap-3">
             <i data-lucide="wifi-off" class="w-8 h-8 text-subtle/50"></i>
             <span>Impossible de charger le classement.</span>
-            <button onclick="loadLeaderboard()" class="mt-1 px-4 py-1.5 rounded-full border border-border text-white hover:bg-white/5 transition-colors text-[12px]">Réessayer</button>
+            <button id="btn-retry-leaderboard" class="mt-1 px-4 py-1.5 rounded-full border border-border text-white hover:bg-white/5 transition-colors text-[12px]">Réessayer</button>
           </div>`;
         lucide.createIcons();
+        document.getElementById('btn-retry-leaderboard').addEventListener('click', loadLeaderboard);
       }
     }
 
@@ -450,6 +468,24 @@
     }
 
     lucide.createIcons();
+    document.getElementById('nav-logout').addEventListener('click', logout);
+
+    // Event delegation for dynamically generated leaderboard rows
+    document.getElementById('leaderboard-list').addEventListener('click', (e) => {
+      const row = e.target.closest('.leaderboard-row');
+      if (row && row.dataset.url) {
+        location.href = row.dataset.url;
+      }
+    });
+    document.getElementById('leaderboard-list').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const row = e.target.closest('.leaderboard-row');
+        if (row && row.dataset.url) {
+          location.href = row.dataset.url;
+        }
+      }
+    });
+
     loadLeaderboard();
 
     // ── Défilement global du Panthéon ───────────────────────────────────────
