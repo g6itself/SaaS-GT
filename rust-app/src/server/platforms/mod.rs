@@ -7,4 +7,6 @@ pub mod epic;
 pub struct SyncStats {
     pub games_synced: u32,
     pub achievements_synced: u32,
+    pub total_achievements: u32,
+    pub games_completed: u32,
 }

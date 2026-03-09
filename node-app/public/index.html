@@ -339,10 +339,29 @@
     // ── Avatar (déterministe sur le username) ───────────────────────────────
     function avatarUrl(username, imageUrl) {
       const sanitized = sanitizeUrl(imageUrl);
-      if (sanitized) return sanitized;
+      if (sanitized && sanitized.trim() !== '') return sanitized;
+
+      const text = (username || '?').substring(0, 2).toUpperCase();
       let h = 0;
       for (let i = 0; i < username.length; i++) h = (h * 31 + username.charCodeAt(i)) & 0xffff;
-      return `https://i.pravatar.cc/150?img=${(h % 70) + 1}`;
+
+      // Création d'un dégradé harmonieux
+      const hue1 = h % 360;
+      const hue2 = (hue1 + 40) % 360;
+
+      const color1 = `hsl(${hue1}, 70%, 55%)`;
+      const color2 = `hsl(${hue2}, 70%, 45%)`;
+
+      return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+        <defs>
+          <linearGradient id="g_${h}" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="${encodeURIComponent(color1)}" />
+            <stop offset="100%" stop-color="${encodeURIComponent(color2)}" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="100" height="100" fill="url(%23g_${h})"/>
+        <text x="50" y="50" dominant-baseline="central" text-anchor="middle" font-family="'Nunito', 'Quicksand', 'Segoe UI Rounded', sans-serif" font-size="42" font-weight="700" letter-spacing="1" fill="%23ffffff">${text}</text>
+      </svg>`;
     }
 
     // ── Couleur du score selon le rang ──────────────────────────────────────

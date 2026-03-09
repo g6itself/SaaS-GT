@@ -87,27 +87,56 @@ async fn search_games(
     pool: web::Data<PgPool>,
     query: web::Query<SearchParams>,
 ) -> HttpResponse {
-    let search_term = query.q.to_lowercase();
+    let search_term = query.q.trim().to_lowercase();
 
-    let games = sqlx::query_as::<_, (uuid::Uuid, String, Option<String>, f32)>(
-        r#"
-        SELECT id, title, cover_image_url,
-               similarity(normalized_title, $1) as sim
-        FROM games
-        WHERE normalized_title % $1
-        ORDER BY sim DESC
-        LIMIT 20
-        "#,
-    )
-    .bind(&search_term)
-    .fetch_all(pool.get_ref())
-    .await;
+    // Requête vide → liste vide
+    if search_term.is_empty() {
+        return HttpResponse::Ok().json(serde_json::Value::Array(vec![]));
+    }
+
+    // Pour les requêtes courtes (< 3 chars), pg_trgm n'est pas fiable :
+    // on utilise un ILIKE prefix en priorité, puis trigram pour les plus longues.
+    let games = if search_term.len() < 3 {
+        sqlx::query_as::<_, (uuid::Uuid, String, Option<String>)>(
+            r#"
+            SELECT id, title, cover_image_url
+            FROM games
+            WHERE normalized_title ILIKE $1
+            ORDER BY title
+            LIMIT 20
+            "#,
+        )
+        .bind(format!("{}%", search_term))
+        .fetch_all(pool.get_ref())
+        .await
+        .map(|rows| rows.into_iter().map(|(id, t, c)| (id, t, c, 1.0f32)).collect::<Vec<_>>())
+    } else {
+        let like_pattern = format!("{}%", search_term);
+        // Trigram similarity + boost si le titre commence par la requête
+        sqlx::query_as::<_, (uuid::Uuid, String, Option<String>, f32)>(
+            r#"
+            SELECT id, title, cover_image_url,
+                   CASE WHEN normalized_title ILIKE $2
+                        THEN 1.0 + similarity(normalized_title, $1)
+                        ELSE similarity(normalized_title, $1)
+                   END AS score
+            FROM games
+            WHERE normalized_title % $1 OR normalized_title ILIKE $2
+            ORDER BY score DESC, title
+            LIMIT 20
+            "#,
+        )
+        .bind(&search_term)
+        .bind(&like_pattern)
+        .fetch_all(pool.get_ref())
+        .await
+    };
 
     match games {
         Ok(rows) => {
             let result: Vec<serde_json::Value> = rows
                 .into_iter()
-                .map(|(id, title, cover_image_url, _sim)| {
+                .map(|(id, title, cover_image_url, _score)| {
                     serde_json::json!({
                         "id": id,
                         "title": title,

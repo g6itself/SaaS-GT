@@ -40,6 +40,7 @@ pub struct PlatformConnectionPublic {
     pub platform_username: Option<String>,
     pub last_synced_at: Option<DateTime<Utc>>,
     pub connected: bool,
+    pub has_api_key: bool,
 }
 
 /// Stats d'achievements par plateforme

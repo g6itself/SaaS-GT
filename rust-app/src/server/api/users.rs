@@ -19,6 +19,8 @@ struct UserProfileRow {
     rank: i64,
     total_achievements: i64,
     completion_avg: f64,
+    total_possible_achievements: i64,
+    games_completed: i64,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -42,6 +44,7 @@ struct GameRow {
 struct AchievementRow {
     name: String,
     description: Option<String>,
+    icon_url: Option<String>,
     rarity: String,
     points: i32,
     game_title: String,
@@ -54,6 +57,11 @@ struct UpdateProfileRequest {
     profile_image_url: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct SteamApikeyRequest {
+    api_key: String,
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -61,6 +69,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         web::scope("/users")
             .route("/me", web::put().to(update_me))
             .route("/me/avatar", web::post().to(upload_avatar))
+            .route("/me/steam-apikey", web::get().to(get_steam_apikey))
+            .route("/me/steam-apikey", web::patch().to(set_steam_apikey))
             .route("/{username}", web::get().to(get_user_profile)),
     );
 }
@@ -100,7 +110,7 @@ async fn upload_avatar(
         }
     };
 
-    let upload_dir = "../node-app/public/uploads/avatars";
+    let upload_dir = "uploads";
     if let Err(e) = fs::create_dir_all(upload_dir).await {
         tracing::error!("Erreur création dossier uploads: {}", e);
         return HttpResponse::InternalServerError()
@@ -123,8 +133,7 @@ async fn upload_avatar(
             .content_type()
             .map(|ct| ct.to_string())
             .unwrap_or_default();
-        if !["image/png", "image/jpeg", "image/webp", "image/gif"]
-            .contains(&content_type.as_str())
+        if !["image/png", "image/jpeg", "image/webp", "image/gif"].contains(&content_type.as_str())
         {
             return HttpResponse::BadRequest().json(serde_json::json!({
                 "error": "Type MIME non supporte (PNG, JPG, WEBP, GIF uniquement)"
@@ -329,6 +338,110 @@ async fn update_me(
     }
 }
 
+// ── GET /api/users/me/steam-apikey ───────────────────────────────────────────
+
+async fn get_steam_apikey(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
+    let claims = match auth_from_request(&req) {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+
+    let row = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT steam_api_key_enc FROM users WHERE id = $1 AND is_active = true",
+    )
+    .bind(claims.sub)
+    .fetch_optional(pool.get_ref())
+    .await;
+
+    match row {
+        Ok(Some(Some(_))) => HttpResponse::Ok().json(serde_json::json!({ "has_key": true })),
+        Ok(_) => HttpResponse::Ok().json(serde_json::json!({ "has_key": false })),
+        Err(e) => {
+            tracing::error!("Erreur get_steam_apikey: {}", e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur interne du serveur" }))
+        }
+    }
+}
+
+// ── PATCH /api/users/me/steam-apikey ─────────────────────────────────────────
+
+async fn set_steam_apikey(
+    pool: web::Data<PgPool>,
+    req: HttpRequest,
+    body: web::Json<SteamApikeyRequest>,
+) -> HttpResponse {
+    let claims = match auth_from_request(&req) {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+
+    let key = body.api_key.trim();
+
+    // Supprimer la cle si vide
+    if key.is_empty() {
+        let _ = sqlx::query(
+            "UPDATE users SET steam_api_key_enc = NULL, updated_at = NOW() WHERE id = $1",
+        )
+        .bind(claims.sub)
+        .execute(pool.get_ref())
+        .await;
+        return HttpResponse::Ok().json(serde_json::json!({ "ok": true, "has_key": false }));
+    }
+
+    // Valider format Steam API key (32 caracteres alphanumeriques)
+    if key.len() != 32 || !key.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "La cle API Steam doit contenir exactement 32 caracteres alphanumeriques"
+        }));
+    }
+
+    let encrypted = match crate::server::crypto::encrypt(key) {
+        Ok(enc) => enc,
+        Err(e) => {
+            tracing::error!("Erreur chiffrement cle API: {}", e);
+            return HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur lors du chiffrement" }));
+        }
+    };
+
+    match sqlx::query(
+        "UPDATE users SET steam_api_key_enc = $1, updated_at = NOW() WHERE id = $2 AND is_active = true",
+    )
+    .bind(&encrypted)
+    .bind(claims.sub)
+    .execute(pool.get_ref())
+    .await
+    {
+        Ok(_) => HttpResponse::Ok().json(serde_json::json!({ "ok": true, "has_key": true })),
+        Err(e) => {
+            tracing::error!("Erreur set_steam_apikey: {}", e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur interne du serveur" }))
+        }
+    }
+}
+
+/// Extrait et valide le token JWT depuis la requete
+fn auth_from_request(req: &HttpRequest) -> Result<crate::server::auth::Claims, HttpResponse> {
+    let auth_header = req
+        .headers()
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+        .ok_or_else(|| {
+            HttpResponse::Unauthorized().json(serde_json::json!({ "error": "Token manquant" }))
+        })?;
+
+    let token = crate::server::auth::extract_token_from_header(auth_header).ok_or_else(|| {
+        HttpResponse::Unauthorized()
+            .json(serde_json::json!({ "error": "Format de token invalide" }))
+    })?;
+
+    crate::server::auth::validate_token(token).map_err(|_| {
+        HttpResponse::Unauthorized().json(serde_json::json!({ "error": "Token invalide" }))
+    })
+}
+
 // ── GET /api/users/{username} ─────────────────────────────────────────────────
 
 async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> HttpResponse {
@@ -345,8 +458,10 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
             u.total_points,
             u.created_at,
             COALESCE(lc.rank_global, 0)::BIGINT AS rank,
-            COALESCE(lc.total_achievements, 0)::BIGINT AS total_achievements,
-            COALESCE(lc.completion_avg, 0.0)::FLOAT8 AS completion_avg
+            u.total_achievements_count::BIGINT AS total_achievements,
+            COALESCE(lc.completion_avg, 0.0)::FLOAT8 AS completion_avg,
+            u.total_possible_achievements::BIGINT AS total_possible_achievements,
+            u.games_completed::BIGINT AS games_completed
         FROM users u
         LEFT JOIN leaderboard_cache lc ON lc.user_id = u.id
         WHERE u.username = $1 AND u.is_active = true
@@ -408,11 +523,34 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
     .await
     .unwrap_or_default();
 
+    let completed_games = sqlx::query_as::<_, GameRow>(
+        r#"
+        SELECT
+            g.title,
+            g.cover_image_url,
+            ugs.completion_pct::FLOAT8 AS completion_pct,
+            ugs.playtime_minutes,
+            ugs.achievements_unlocked,
+            ugs.achievements_total
+        FROM user_game_stats ugs
+        JOIN games g ON g.id = ugs.game_id
+        WHERE ugs.user_id = (SELECT id FROM users WHERE username = $1)
+          AND ugs.achievements_total > 0
+          AND ugs.achievements_unlocked >= ugs.achievements_total
+        ORDER BY g.title
+        "#,
+    )
+    .bind(&username)
+    .fetch_all(pool.get_ref())
+    .await
+    .unwrap_or_default();
+
     let recent_achievements = sqlx::query_as::<_, AchievementRow>(
         r#"
         SELECT
             a.name,
             a.description,
+            a.icon_url,
             a.rarity::TEXT AS rarity,
             a.points,
             g.title AS game_title,
@@ -424,7 +562,7 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
         WHERE ua.user_id = (SELECT id FROM users WHERE username = $1)
           AND ua.is_unlocked = true
         ORDER BY ua.unlocked_at DESC
-        LIMIT 10
+        LIMIT 5
         "#,
     )
     .bind(&username)
@@ -441,10 +579,13 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
         "total_points": profile.total_points,
         "rank": profile.rank,
         "total_achievements": profile.total_achievements,
+        "total_possible_achievements": profile.total_possible_achievements,
         "completion_avg": profile.completion_avg,
+        "games_completed": profile.games_completed,
         "member_since": profile.created_at,
         "platforms": platforms,
         "games": games,
+        "completed_games": completed_games,
         "recent_achievements": recent_achievements,
     }))
 }

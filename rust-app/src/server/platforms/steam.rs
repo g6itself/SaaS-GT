@@ -5,8 +5,17 @@ use super::SyncStats;
 
 const STEAM_API_BASE: &str = "https://api.steampowered.com";
 
-fn get_steam_api_key() -> String {
-    std::env::var("STEAM_API_KEY").expect("STEAM_API_KEY doit etre definie")
+/// Résout la clé API à utiliser : clé personnelle de l'utilisateur en priorité,
+/// sinon la variable d'environnement du serveur.
+fn resolve_api_key(user_key: Option<&str>) -> Result<String, Box<dyn std::error::Error>> {
+    if let Some(key) = user_key {
+        let key = key.trim();
+        if !key.is_empty() {
+            return Ok(key.to_string());
+        }
+    }
+    std::env::var("STEAM_API_KEY")
+        .map_err(|_| "Aucune clé API Steam configurée (ni personnelle ni serveur)".into())
 }
 
 // ─── Helpers publics ────────────────────────────────────────────────────────
@@ -108,24 +117,38 @@ pub async fn fetch_steam_player_summary(steam_id: &str) -> Result<String, Box<dy
 /// Recupere la liste des jeux possedes par un utilisateur Steam
 async fn fetch_owned_games(
     steam_id: &str,
+    api_key: &str,
 ) -> Result<Vec<SteamOwnedGame>, Box<dyn std::error::Error>> {
-    let api_key = get_steam_api_key();
     let url = format!(
         "{}/IPlayerService/GetOwnedGames/v1/?key={}&steamid={}&include_appinfo=1&format=json",
         STEAM_API_BASE, api_key, steam_id
     );
 
     let client = reqwest::Client::new();
-    let resp: SteamOwnedGamesResponse = client.get(&url).send().await?.json().await?;
+    let resp: serde_json::Value = client.get(&url).send().await?.json().await?;
 
-    Ok(resp.response.games.unwrap_or_default())
+    let games = resp["response"]["games"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|g| {
+                    let appid = g["appid"].as_u64()?;
+                    let name = g["name"].as_str().unwrap_or("").to_string();
+                    if name.is_empty() { return None; }
+                    Some(SteamOwnedGame { appid, name })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(games)
 }
 
 /// Recupere le schema des achievements d'un jeu
 async fn fetch_game_schema(
     app_id: u64,
+    api_key: &str,
 ) -> Result<Vec<SteamAchievementSchema>, Box<dyn std::error::Error>> {
-    let api_key = get_steam_api_key();
     let url = format!(
         "{}/ISteamUserStats/GetSchemaForGame/v2/?key={}&appid={}&l=french",
         STEAM_API_BASE, api_key, app_id
@@ -158,8 +181,8 @@ async fn fetch_game_schema(
 async fn fetch_player_achievements(
     steam_id: &str,
     app_id: u64,
+    api_key: &str,
 ) -> Result<Vec<SteamPlayerAchievement>, Box<dyn std::error::Error>> {
-    let api_key = get_steam_api_key();
     let url = format!(
         "{}/ISteamUserStats/GetPlayerAchievements/v1/?key={}&steamid={}&appid={}",
         STEAM_API_BASE, api_key, steam_id, app_id
@@ -190,17 +213,21 @@ async fn fetch_player_achievements(
     Ok(achievements)
 }
 
-/// Synchronise tous les achievements Steam d'un utilisateur
+/// Synchronise tous les achievements Steam d'un utilisateur.
+/// `user_api_key` : clé API personnelle du joueur (prioritaire sur la variable serveur).
 pub async fn sync_steam_achievements(
     pool: &PgPool,
     user_id: Uuid,
     steam_id: &str,
+    user_api_key: Option<&str>,
 ) -> Result<SyncStats, Box<dyn std::error::Error>> {
+    let api_key = resolve_api_key(user_api_key)?;
+
     let mut games_synced: u32 = 0;
     let mut achievements_synced: u32 = 0;
 
     // 1. Recuperer la liste des jeux
-    let owned_games = fetch_owned_games(steam_id).await?;
+    let owned_games = fetch_owned_games(steam_id, &api_key).await?;
 
     for game in &owned_games {
         // 2. Upsert le jeu dans la BDD
@@ -252,7 +279,7 @@ pub async fn sync_steam_achievements(
         let game_platform_id = gpi_row.0;
 
         // 4. Recuperer le schema des achievements
-        let schema = match fetch_game_schema(game.appid).await {
+        let schema = match fetch_game_schema(game.appid, &api_key).await {
             Ok(s) => s,
             Err(_) => continue, // Certains jeux n'ont pas d'achievements
         };
@@ -291,10 +318,12 @@ pub async fn sync_steam_achievements(
         .await?;
 
         // 6. Recuperer les achievements du joueur
-        let player_achievements = match fetch_player_achievements(steam_id, game.appid).await {
+        let player_achievements = match fetch_player_achievements(steam_id, game.appid, &api_key).await {
             Ok(pa) => pa,
             Err(_) => continue,
         };
+
+        let mut unlocked_count: i32 = 0;
 
         for pa in &player_achievements {
             // Trouver l'achievement correspondant
@@ -328,32 +357,87 @@ pub async fn sync_steam_achievements(
                 .execute(pool)
                 .await?;
 
+                if pa.achieved {
+                    unlocked_count += 1;
+                }
                 achievements_synced += 1;
             }
         }
 
+        // 7. Upsert user_game_stats pour ce jeu
+        let total = schema.len() as i32;
+        let pct = if total > 0 {
+            (unlocked_count as f64 / total as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        sqlx::query(
+            r#"
+            INSERT INTO user_game_stats
+                (user_id, game_id, achievements_unlocked, achievements_total, completion_pct, updated_at)
+            VALUES ($1, $2, $3, $4, $5, NOW())
+            ON CONFLICT (user_id, game_id) DO UPDATE
+            SET achievements_unlocked = $3,
+                achievements_total     = $4,
+                completion_pct         = $5,
+                updated_at             = NOW()
+            "#,
+        )
+        .bind(user_id)
+        .bind(game_id)
+        .bind(unlocked_count)
+        .bind(total)
+        .bind(pct)
+        .execute(pool)
+        .await?;
+
         games_synced += 1;
     }
+
+    // 8. Recalcul bulk exact sur users (plus fiable que les triggers incrémentaux)
+    let final_stats = sqlx::query_as::<_, (i64, i64)>(
+        r#"
+        UPDATE users
+        SET
+            total_achievements_count = (
+                SELECT COUNT(*)
+                FROM user_achievements
+                WHERE user_id = $1 AND is_unlocked = true
+            ),
+            games_completed = (
+                SELECT COUNT(*)
+                FROM user_game_stats
+                WHERE user_id = $1
+                  AND achievements_total > 0
+                  AND achievements_unlocked >= achievements_total
+            ),
+            total_possible_achievements = (
+                SELECT COALESCE(SUM(achievements_total), 0)
+                FROM user_game_stats
+                WHERE user_id = $1
+            )
+        WHERE id = $1
+        RETURNING total_achievements_count, games_completed::BIGINT
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or((0, 0));
 
     Ok(SyncStats {
         games_synced,
         achievements_synced,
+        total_achievements: final_stats.0 as u32,
+        games_completed: final_stats.1 as u32,
     })
 }
 
 // ─── Types Steam API ────────────────────────────────────────────────────────
 
-#[derive(serde::Deserialize)]
-struct SteamOwnedGamesResponse {
-    response: SteamOwnedGamesInner,
-}
-
-#[derive(serde::Deserialize)]
-struct SteamOwnedGamesInner {
-    games: Option<Vec<SteamOwnedGame>>,
-}
-
-#[derive(serde::Deserialize)]
 struct SteamOwnedGame {
     appid: u64,
     name: String,

@@ -69,6 +69,7 @@ services:
       LEPTOS_SITE_ADDR: "0.0.0.0:3000"
       LEPTOS_SITE_ROOT: "target/site"
       JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       STEAM_API_KEY: ${STEAM_API_KEY}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3100}
     # Pas de ports exposés au host — accessible uniquement via node-app sur le réseau interne
@@ -78,6 +79,7 @@ services:
       - ./rust-app:/app
       - rust_registry:/usr/local/cargo/registry
       - rust_target:/app/target
+      - avatar_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,6 +105,7 @@ services:
     volumes:
       - ./node-app:/app
       - node_modules:/app/node_modules
+      - avatar_uploads:/app/public/uploads/avatars
     depends_on:
       - rust-app
     command: npm run dev
@@ -116,3 +119,4 @@ volumes:
   rust_registry:    # Cache registre Cargo (évite re-téléchargements)
   rust_target:      # Artefacts de compilation Rust
   node_modules:     # node_modules isolés du host
+  avatar_uploads:   # Stockage partagé des photos de profil

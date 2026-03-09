@@ -140,8 +140,8 @@ async fn list_connections(
         Err(resp) => return resp,
     };
 
-    let connections = sqlx::query_as::<_, (uuid::Uuid, String, Option<String>, Option<chrono::DateTime<chrono::Utc>>)>(
-        "SELECT id, platform::text, platform_username, last_synced_at FROM platform_connections WHERE user_id = $1",
+    let connections = sqlx::query_as::<_, (uuid::Uuid, String, Option<String>, Option<chrono::DateTime<chrono::Utc>>, bool)>(
+        "SELECT id, platform::text, platform_username, last_synced_at, (access_token IS NOT NULL) as has_api_key FROM platform_connections WHERE user_id = $1",
     )
     .bind(user_id)
     .fetch_all(pool.get_ref())
@@ -151,13 +151,14 @@ async fn list_connections(
         Ok(rows) => {
             let result: Vec<PlatformConnectionPublic> = rows
                 .into_iter()
-                .map(|(id, platform, platform_username, last_synced_at)| {
+                .map(|(id, platform, platform_username, last_synced_at, has_api_key)| {
                     PlatformConnectionPublic {
                         id,
                         platform,
                         platform_username,
                         last_synced_at,
                         connected: true,
+                        has_api_key,
                     }
                 })
                 .collect();
@@ -283,14 +284,36 @@ async fn sync_platform(
     .await;
 
     match connection {
-        Ok(Some((_conn_id, platform_user_id, _access_token))) => {
+        Ok(Some((_conn_id, platform_user_id, access_token))) => {
             // Lancer la synchronisation selon la plateforme
             match platform.as_str() {
                 "steam" => {
+                    // Priorite : cle chiffree dans users > access_token > STEAM_API_KEY env
+                    let encrypted_key = sqlx::query_scalar::<_, Option<String>>(
+                        "SELECT steam_api_key_enc FROM users WHERE id = $1",
+                    )
+                    .bind(user_id)
+                    .fetch_optional(pool.get_ref())
+                    .await
+                    .ok()
+                    .flatten()
+                    .flatten();
+
+                    let decrypted_key = encrypted_key.as_deref().and_then(|enc| {
+                        crate::server::crypto::decrypt(enc)
+                            .map_err(|e| tracing::warn!("Echec dechiffrement cle API: {}", e))
+                            .ok()
+                    });
+
+                    let user_api_key = decrypted_key
+                        .as_deref()
+                        .or(access_token.as_deref());
+
                     match crate::server::platforms::steam::sync_steam_achievements(
                         pool.get_ref(),
                         user_id,
                         &platform_user_id,
+                        user_api_key,
                     )
                     .await
                     {
@@ -307,6 +330,8 @@ async fn sync_platform(
                                 "message": "Synchronisation Steam terminee",
                                 "games_synced": stats.games_synced,
                                 "achievements_synced": stats.achievements_synced,
+                                "total_achievements": stats.total_achievements,
+                                "games_completed": stats.games_completed,
                             }))
                         }
                         Err(e) => {
