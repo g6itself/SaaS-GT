@@ -5,42 +5,40 @@ use aes_gcm::{
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 
 /// Dérive une clé AES-256 (32 octets) depuis la variable d'environnement ENCRYPTION_KEY.
-/// En dev : utilise une clé par défaut si non définie.
-/// En prod : panique si non définie.
-fn encryption_key() -> [u8; 32] {
-    let raw = match std::env::var("ENCRYPTION_KEY") {
-        Ok(s) if !s.is_empty() => s,
-        _ => {
-            if cfg!(debug_assertions) {
-                tracing::warn!("ENCRYPTION_KEY non définie — utilisation de la clé de dev (dangereux)");
-                "dev-encryption-key-change-me-32b".to_string()
-            } else {
-                panic!("ENCRYPTION_KEY doit être définie en production")
-            }
-        }
-    };
+/// Retourne une erreur si la variable est absente ou trop courte.
+/// Accepte 64 caractères hex (= 32 octets) ou une chaîne UTF-8 d'au moins 32 octets.
+fn encryption_key() -> Result<[u8; 32], String> {
+    let raw = std::env::var("ENCRYPTION_KEY")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .ok_or("ENCRYPTION_KEY non définie — définir cette variable d'environnement")?;
 
-    // Si c'est 64 caractères hex, on décode vers 32 octets
-    let bytes = if raw.len() == 64 && raw.chars().all(|c| c.is_ascii_hexdigit()) {
-        let decoded: Vec<u8> = (0..64)
+    // Format hex (64 chars → 32 octets)
+    let bytes: Vec<u8> = if raw.len() == 64 && raw.chars().all(|c| c.is_ascii_hexdigit()) {
+        (0..64)
             .step_by(2)
             .map(|i| u8::from_str_radix(&raw[i..i + 2], 16).unwrap_or(0))
-            .collect();
-        decoded
+            .collect()
     } else {
         raw.into_bytes()
     };
 
+    if bytes.len() < 32 {
+        return Err(format!(
+            "ENCRYPTION_KEY trop courte ({} octets) — minimum 32 octets ou 64 caractères hex",
+            bytes.len()
+        ));
+    }
+
     let mut key = [0u8; 32];
-    let len = bytes.len().min(32);
-    key[..len].copy_from_slice(&bytes[..len]);
-    key
+    key.copy_from_slice(&bytes[..32]);
+    Ok(key)
 }
 
 /// Chiffre une valeur avec AES-256-GCM.
 /// Retourne une chaîne base64(nonce || ciphertext_avec_tag).
 pub fn encrypt(plaintext: &str) -> Result<String, String> {
-    let key_bytes = encryption_key();
+    let key_bytes = encryption_key()?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng); // 12 octets
@@ -67,7 +65,7 @@ pub fn decrypt(encoded: &str) -> Result<String, String> {
     let (nonce_bytes, ciphertext) = combined.split_at(12);
     let nonce = Nonce::from_slice(nonce_bytes);
 
-    let key_bytes = encryption_key();
+    let key_bytes = encryption_key()?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
 
