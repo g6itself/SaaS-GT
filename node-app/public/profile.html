@@ -1063,12 +1063,13 @@
       // Keeping empty for compatibility during refactor if needed
     }
 
-    function renderAchievements(list) {
+    function renderAchievements(list, isMe) {
       const el = document.getElementById('ph-achievements');
+      if (!isMe) { el.innerHTML = ''; return; }
       const header = `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
         <i data-lucide="zap" class="w-4 h-4 text-brand"></i> Succès récents
       </h2>`;
-      if (!list.length) {
+      if (!list || !list.length) {
         el.innerHTML = `<div class="card flex flex-col h-[500px]">
           <div class="p-6 pb-0 shrink-0">${header}</div>
           <div class="flex-1 flex flex-col items-center justify-center gap-2 text-subtle text-[13px] p-6">
@@ -1138,6 +1139,7 @@
 
     function renderCompletedGames(list, isMe) {
       const el = document.getElementById('ph-completed-games');
+      if (!isMe) { el.innerHTML = ''; return; }
       const header = `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
         <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Jeux terminés à 100%
       </h2>`;
@@ -1842,7 +1844,7 @@
               renderStats(d);
               renderCompletedGames(d.completed_games || [], true);
               renderGames(d.games, true);
-              renderAchievements(d.recent_achievements);
+              renderAchievements(d.recent_achievements || [], true);
               lucide.createIcons();
             }
           }
@@ -1978,7 +1980,7 @@
         renderStats(d);
         renderCompletedGames(d.completed_games || [], isMe);
         renderGames(d.games, isMe);
-        renderAchievements(d.recent_achievements);
+        renderAchievements(d.recent_achievements || [], isMe);
         lucide.createIcons();
 
         // Open Plateformes tab after Steam OpenID callback
