@@ -39,6 +39,7 @@ struct GameRow {
     achievements_unlocked: i32,
     achievements_total: i32,
     platform: String,
+    platform_game_id: String,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -527,7 +528,8 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
             ugs.playtime_minutes,
             ugs.achievements_unlocked,
             ugs.achievements_total,
-            gpi.platform::TEXT AS platform
+            gpi.platform::TEXT AS platform,
+            gpi.platform_game_id
         FROM user_game_stats ugs
         JOIN games g ON g.id = ugs.game_id
         JOIN game_platform_ids gpi ON g.id = gpi.game_id
@@ -549,7 +551,8 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
             ugs.playtime_minutes,
             ugs.achievements_unlocked,
             ugs.achievements_total,
-            gpi.platform::TEXT AS platform
+            gpi.platform::TEXT AS platform,
+            gpi.platform_game_id
         FROM user_game_stats ugs
         JOIN games g ON g.id = ugs.game_id
         JOIN game_platform_ids gpi ON g.id = gpi.game_id
