@@ -1014,7 +1014,8 @@
           const pct = g.completion_pct.toFixed(0);
           const safeCoverUrl = sanitizeUrl(g.cover_image_url);
           const cover = safeCoverUrl
-            ? `<img src="${escapeHtml(safeCoverUrl)}" class="w-full h-full object-cover" onerror="this.onerror=null;this.parentElement.innerHTML='<div class=\\'flex items-center justify-center w-full h-full text-3xl\\'>🎮</div>'">`
+            ? `<img src="${escapeHtml(safeCoverUrl)}" class="w-full h-full object-cover" onerror="this.classList.add('hidden');this.nextElementSibling.classList.remove('hidden')">` +
+              `<div class="hidden flex items-center justify-center w-full h-full text-3xl">🎮</div>`
             : `<div class="flex items-center justify-center w-full h-full text-3xl">🎮</div>`;
           return `
             <div class="card overflow-hidden group hover:border-brand/40 transition-all duration-300 flex flex-col h-full">
@@ -1059,8 +1060,70 @@
     });
 
     function renderGames(games, isMe) {
-      // Function now deprecated as content moved to Library Modal
-      // Keeping empty for compatibility during refactor if needed
+      if (isMe) return; // Library Modal gère la vue isMe
+
+      // Profil public : afficher les jeux dans les deux colonnes disponibles
+      const elAch = document.getElementById('ph-achievements');
+      const elCmp = document.getElementById('ph-completed-games');
+
+      if (!games || !games.length) {
+        elAch.innerHTML = '';
+        elCmp.innerHTML = '';
+        return;
+      }
+
+      // Split : en-cours (gauche) | complétés 100% (droite)
+      const completed = games.filter(g => Math.round(g.completion_pct) === 100);
+      const inProgress = games.filter(g => Math.round(g.completion_pct) < 100).slice(0, 5);
+
+      const makeCard = g => {
+        const pct = g.completion_pct.toFixed(0);
+        const isSteam = g.platform === 'steam' && g.platform_game_id;
+        const imgUrl = isSteam
+          ? `https://cdn.akamai.steamstatic.com/steam/apps/${encodeURIComponent(g.platform_game_id)}/header.jpg`
+          : sanitizeUrl(g.cover_image_url);
+        const img = imgUrl
+          ? `<img src="${escapeHtml(imgUrl)}" alt="" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.classList.add('hidden');this.nextElementSibling.classList.remove('hidden')">`
+          : '';
+        const fallback = `<div class="${imgUrl ? 'hidden' : ''} w-full h-full flex items-center justify-center bg-white/5 text-xl">🎮</div>`;
+        return `
+        <div class="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-brand/30 transition-all duration-300">
+          <div class="relative h-[76px] overflow-hidden bg-white/[0.03]">
+            ${img}${fallback}
+            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 right-0 px-3 pb-1.5">
+              <div class="text-[12px] font-bold text-white truncate drop-shadow-sm">${escapeHtml(g.title)}</div>
+            </div>
+          </div>
+          <div class="px-3 py-1.5 flex items-center justify-between bg-white/[0.02]">
+            <span class="text-[10px] text-subtle/60 capitalize">${escapeHtml(g.platform)}</span>
+            <span class="num text-[10px] font-bold text-brand">${pct}%</span>
+          </div>
+        </div>`;
+      };
+
+      const headerHtml = (icon, color, label) =>
+        `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
+          <i data-lucide="${icon}" class="w-4 h-4 ${color}"></i> ${label}
+        </h2>`;
+
+      elAch.innerHTML = inProgress.length ? `
+        <div class="card flex flex-col h-[500px] overflow-hidden">
+          <div class="p-6 pb-3 shrink-0">${headerHtml('gamepad-2', 'text-brand', 'En cours')}</div>
+          <div class="px-6 pb-6 overflow-y-auto flex-1 flex flex-col gap-3 scrollbar-hide">
+            ${inProgress.map(makeCard).join('')}
+          </div>
+        </div>` : '';
+
+      elCmp.innerHTML = completed.length ? `
+        <div class="card flex flex-col h-[500px] overflow-hidden">
+          <div class="p-6 pb-3 shrink-0">${headerHtml('check-circle', 'text-emerald-400', 'Terminés à 100%')}</div>
+          <div class="px-6 pb-6 overflow-y-auto flex-1 flex flex-col gap-3 scrollbar-hide">
+            ${completed.slice(0, 5).map(makeCard).join('')}
+          </div>
+        </div>` : '';
+
+      lucide.createIcons();
     }
 
     function renderAchievements(list, isMe) {
