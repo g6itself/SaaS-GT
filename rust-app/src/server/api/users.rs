@@ -38,6 +38,7 @@ struct GameRow {
     playtime_minutes: Option<i32>,
     achievements_unlocked: i32,
     achievements_total: i32,
+    platform: String,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -118,6 +119,7 @@ async fn upload_avatar(
     }
 
     let mut saved_filename = String::new();
+    let mut saved_filepath = String::new(); // chemin complet pour nettoyage si la DB échoue
 
     while let Some(item) = payload.next().await {
         let mut field = match item {
@@ -163,11 +165,13 @@ async fn upload_avatar(
 
         saved_filename = format!("{}_{}{}", claims.sub, uuid::Uuid::new_v4().simple(), ext);
         let filepath = format!("{}/{}", upload_dir, saved_filename);
+        saved_filepath = filepath.clone();
 
         let mut f = match std::fs::File::create(&filepath) {
             Ok(file) => file,
             Err(e) => {
                 tracing::error!("Erreur création fichier local: {}", e);
+                saved_filepath.clear(); // pas encore créé, rien à nettoyer
                 return HttpResponse::InternalServerError()
                     .json(serde_json::json!({ "error": "Erreur serveur" }));
             }
@@ -180,24 +184,28 @@ async fn upload_avatar(
             let data = match chunk {
                 Ok(d) => d,
                 Err(_) => {
+                    let _ = std::fs::remove_file(&filepath);
                     return HttpResponse::BadRequest()
                         .json(serde_json::json!({ "error": "Erreur transfert" }))
                 }
             };
             size += data.len();
             if size > max_size {
+                let _ = std::fs::remove_file(&filepath);
                 return HttpResponse::PayloadTooLarge()
-                    .json(serde_json::json!({ "error": "Fichier trop volumineux (20 Mod max)" }));
+                    .json(serde_json::json!({ "error": "Fichier trop volumineux (20 Mo max)" }));
             }
             f = match web::block(move || f.write_all(&data).map(|_| f)).await {
                 Ok(Ok(file)) => file,
                 Ok(Err(e)) => {
                     tracing::error!("Erreur ecriture fichier: {}", e);
+                    let _ = std::fs::remove_file(&filepath);
                     return HttpResponse::InternalServerError()
                         .json(serde_json::json!({ "error": "Erreur serveur lors de l'ecriture" }));
                 }
                 Err(e) => {
                     tracing::error!("Erreur block: {}", e);
+                    let _ = std::fs::remove_file(&filepath);
                     return HttpResponse::InternalServerError()
                         .json(serde_json::json!({ "error": "Erreur serveur" }));
                 }
@@ -224,6 +232,10 @@ async fn upload_avatar(
         })),
         Err(e) => {
             tracing::error!("Erreur BDD update avatar: {}", e);
+            // Supprimer le fichier écrit sur disque pour éviter les orphelins
+            if let Err(rm_err) = std::fs::remove_file(&saved_filepath) {
+                tracing::warn!("Fichier orphelin non supprimé {}: {}", saved_filepath, rm_err);
+            }
             HttpResponse::InternalServerError()
                 .json(serde_json::json!({ "error": "Erreur serveur" }))
         }
@@ -510,12 +522,13 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
             ugs.completion_pct::FLOAT8 AS completion_pct,
             ugs.playtime_minutes,
             ugs.achievements_unlocked,
-            ugs.achievements_total
+            ugs.achievements_total,
+            gpi.platform::TEXT AS platform
         FROM user_game_stats ugs
         JOIN games g ON g.id = ugs.game_id
+        JOIN game_platform_ids gpi ON g.id = gpi.game_id
         WHERE ugs.user_id = (SELECT id FROM users WHERE username = $1)
         ORDER BY ugs.last_played_at DESC NULLS LAST, ugs.completion_pct DESC
-        LIMIT 12
         "#,
     )
     .bind(&username)
@@ -531,9 +544,11 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
             ugs.completion_pct::FLOAT8 AS completion_pct,
             ugs.playtime_minutes,
             ugs.achievements_unlocked,
-            ugs.achievements_total
+            ugs.achievements_total,
+            gpi.platform::TEXT AS platform
         FROM user_game_stats ugs
         JOIN games g ON g.id = ugs.game_id
+        JOIN game_platform_ids gpi ON g.id = gpi.game_id
         WHERE ugs.user_id = (SELECT id FROM users WHERE username = $1)
           AND ugs.achievements_total > 0
           AND ugs.achievements_unlocked >= ugs.achievements_total
