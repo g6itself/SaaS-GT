@@ -186,7 +186,7 @@ async fn upload_avatar(
                 Err(_) => {
                     let _ = std::fs::remove_file(&filepath);
                     return HttpResponse::BadRequest()
-                        .json(serde_json::json!({ "error": "Erreur transfert" }))
+                        .json(serde_json::json!({ "error": "Erreur transfert" }));
                 }
             };
             size += data.len();
@@ -234,7 +234,11 @@ async fn upload_avatar(
             tracing::error!("Erreur BDD update avatar: {}", e);
             // Supprimer le fichier écrit sur disque pour éviter les orphelins
             if let Err(rm_err) = std::fs::remove_file(&saved_filepath) {
-                tracing::warn!("Fichier orphelin non supprimé {}: {}", saved_filepath, rm_err);
+                tracing::warn!(
+                    "Fichier orphelin non supprimé {}: {}",
+                    saved_filepath,
+                    rm_err
+                );
             }
             HttpResponse::InternalServerError()
                 .json(serde_json::json!({ "error": "Erreur serveur" }))
@@ -552,7 +556,8 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
         WHERE ugs.user_id = (SELECT id FROM users WHERE username = $1)
           AND ugs.achievements_total > 0
           AND ugs.achievements_unlocked >= ugs.achievements_total
-        ORDER BY g.title
+        ORDER BY ugs.updated_at DESC
+        LIMIT 5
         "#,
     )
     .bind(&username)
@@ -577,7 +582,7 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
         WHERE ua.user_id = (SELECT id FROM users WHERE username = $1)
           AND ua.is_unlocked = true
         ORDER BY ua.unlocked_at DESC
-        LIMIT 5
+        LIMIT 4
         "#,
     )
     .bind(&username)
