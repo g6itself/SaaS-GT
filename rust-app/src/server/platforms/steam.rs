@@ -279,6 +279,9 @@ pub async fn sync_steam_achievements(
         let game_platform_id = gpi_row.0;
 
         // 4. Recuperer le schema des achievements
+        // Pause entre chaque jeu pour respecter le rate limit de l'API Steam
+        // (~10 req/s max, soit ≈ 100ms min entre appels consécutifs)
+        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
         let schema = match fetch_game_schema(game.appid, &api_key).await {
             Ok(s) => s,
             Err(_) => continue, // Certains jeux n'ont pas d'achievements
