@@ -326,19 +326,21 @@ pub async fn sync_steam_achievements(
             Err(_) => continue,
         };
 
+        // Charger tous les IDs d'achievements du jeu en une seule requête
+        let achievements_map: std::collections::HashMap<String, Uuid> =
+            sqlx::query_as::<_, (String, Uuid)>(
+                "SELECT platform_achievement_id, id FROM achievements WHERE game_platform_id = $1",
+            )
+            .bind(game_platform_id)
+            .fetch_all(pool)
+            .await?
+            .into_iter()
+            .collect();
+
         let mut unlocked_count: i32 = 0;
 
         for pa in &player_achievements {
-            // Trouver l'achievement correspondant
-            let ach_id = sqlx::query_as::<_, (Uuid,)>(
-                "SELECT id FROM achievements WHERE game_platform_id = $1 AND platform_achievement_id = $2",
-            )
-            .bind(game_platform_id)
-            .bind(&pa.api_name)
-            .fetch_optional(pool)
-            .await?;
-
-            if let Some((achievement_id,)) = ach_id {
+            if let Some(&achievement_id) = achievements_map.get(&pa.api_name) {
                 let unlocked_at = if pa.achieved && pa.unlock_time > 0 {
                     chrono::DateTime::from_timestamp(pa.unlock_time, 0)
                 } else {
