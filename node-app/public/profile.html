@@ -268,13 +268,14 @@
           <div id="ph-stats" class="grid grid-cols-2 gap-4 stagger-item" style="animation-delay:0.15s">
           </div>
 
-          <!-- Achievements and Completed Games -->
+          <!-- Espace personnel : succès récents + jeux 100% (isMe uniquement) -->
           <div class="grid lg:grid-cols-2 gap-4">
-            <!-- Achievements -->
             <div id="ph-achievements" class="stagger-item" style="animation-delay:0.2s"></div>
-            <!-- Completed Games -->
             <div id="ph-completed-games" class="stagger-item" style="animation-delay:0.25s"></div>
           </div>
+
+          <!-- Profil public : bibliothèque de jeux (!isMe uniquement) -->
+          <div id="ph-games" class="stagger-item" style="animation-delay:0.2s"></div>
 
         </div>
       </div>
@@ -1060,21 +1061,14 @@
     });
 
     function renderGames(games, isMe) {
-      if (isMe) return; // Library Modal gère la vue isMe
+      const el = document.getElementById('ph-games');
+      if (isMe) { el.innerHTML = ''; return; } // Library Modal gère la vue isMe
 
-      // Profil public : afficher les jeux dans les deux colonnes disponibles
-      const elAch = document.getElementById('ph-achievements');
-      const elCmp = document.getElementById('ph-completed-games');
+      if (!games || !games.length) { el.innerHTML = ''; return; }
 
-      if (!games || !games.length) {
-        elAch.innerHTML = '';
-        elCmp.innerHTML = '';
-        return;
-      }
-
-      // Split : en-cours (gauche) | complétés 100% (droite)
-      const completed = games.filter(g => Math.round(g.completion_pct) === 100);
+      // Split : en cours (gauche) | complétés 100% (droite)
       const inProgress = games.filter(g => Math.round(g.completion_pct) < 100).slice(0, 5);
+      const completed  = games.filter(g => Math.round(g.completion_pct) === 100).slice(0, 5);
 
       const makeCard = g => {
         const pct = g.completion_pct.toFixed(0);
@@ -1102,26 +1096,22 @@
         </div>`;
       };
 
-      const headerHtml = (icon, color, label) =>
-        `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
-          <i data-lucide="${icon}" class="w-4 h-4 ${color}"></i> ${label}
-        </h2>`;
-
-      elAch.innerHTML = inProgress.length ? `
+      const col = (icon, color, label, items) => items.length ? `
         <div class="card flex flex-col h-[500px] overflow-hidden">
-          <div class="p-6 pb-3 shrink-0">${headerHtml('gamepad-2', 'text-brand', 'En cours')}</div>
+          <div class="p-6 pb-3 shrink-0">
+            <h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
+              <i data-lucide="${icon}" class="w-4 h-4 ${color}"></i> ${label}
+            </h2>
+          </div>
           <div class="px-6 pb-6 overflow-y-auto flex-1 flex flex-col gap-3 scrollbar-hide">
-            ${inProgress.map(makeCard).join('')}
+            ${items.map(makeCard).join('')}
           </div>
         </div>` : '';
 
-      elCmp.innerHTML = completed.length ? `
-        <div class="card flex flex-col h-[500px] overflow-hidden">
-          <div class="p-6 pb-3 shrink-0">${headerHtml('check-circle', 'text-emerald-400', 'Terminés à 100%')}</div>
-          <div class="px-6 pb-6 overflow-y-auto flex-1 flex flex-col gap-3 scrollbar-hide">
-            ${completed.slice(0, 5).map(makeCard).join('')}
-          </div>
-        </div>` : '';
+      el.innerHTML = `<div class="grid lg:grid-cols-2 gap-4">
+        ${col('gamepad-2',   'text-brand',        'En cours',        inProgress)}
+        ${col('check-circle','text-emerald-400',   'Terminés à 100%', completed)}
+      </div>`;
 
       lucide.createIcons();
     }
