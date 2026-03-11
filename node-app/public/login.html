@@ -352,8 +352,16 @@
         document.getElementById('nav-logout').addEventListener('click', logout);
         document.getElementById('tab-login').addEventListener('click', (e) => switchTab(e, 'login'));
         document.getElementById('tab-register').addEventListener('click', (e) => switchTab(e, 'register'));
-        document.getElementById('toggle-login-pwd').addEventListener('click', function () { togglePwd('login-pwd', this); });
-        document.getElementById('toggle-reg-pwd').addEventListener('click', function () { togglePwd('reg-pwd', this); });
+        
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#toggle-login-pwd')) {
+                togglePwd('login-pwd', 'toggle-login-pwd');
+            }
+            if (e.target.closest('#toggle-reg-pwd')) {
+                togglePwd('reg-pwd', 'toggle-reg-pwd');
+            }
+        });
+
         document.getElementById('form-register').addEventListener('submit', handleRegister);
 
         // Déjà connecté → aller au profil
@@ -399,20 +407,24 @@
             }
         }
 
-        function togglePwd(id, icon) {
-            const input = document.getElementById(id);
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.setAttribute('data-lucide', 'eye-off');
-            } else {
-                input.type = 'password';
-                icon.setAttribute('data-lucide', 'eye');
-            }
+        function togglePwd(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            const isPassword = input.type === 'password';
+            
+            input.type = isPassword ? 'text' : 'password';
+            
+            const newIcon = document.createElement('i');
+            newIcon.id = iconId;
+            newIcon.setAttribute('class', icon.getAttribute('class'));
+            newIcon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
+            icon.replaceWith(newIcon);
+            
             lucide.createIcons();
         }
 
         // ── Helper : fetch avec timeout ──────────────────────────────────────
-        function fetchWithTimeout(url, options, ms = 12000) {
+        function fetchWithTimeout(url, options, ms = 30000) {
             const ctrl = new AbortController();
             const timer = setTimeout(() => ctrl.abort(), ms);
             return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));

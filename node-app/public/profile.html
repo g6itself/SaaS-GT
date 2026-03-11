@@ -282,40 +282,61 @@
     </div>
   </main>
 
-  <!-- Library Modal (New) -->
+  <!-- Library Modal -->
   <div id="library-modal"
     class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
     <div
-      class="card w-full max-w-5xl h-[80vh] flex flex-col transform scale-95 transition-transform duration-300 relative overflow-hidden">
-      <button id="btn-close-library" class="absolute top-6 right-8 z-20 text-subtle hover:text-white transition-colors">
-        <i data-lucide="x" class="w-6 h-6"></i>
-      </button>
+      class="card w-full max-w-6xl h-[85vh] flex flex-col transform scale-95 transition-transform duration-300 relative overflow-hidden">
 
-      <div class="p-8 pb-4 shrink-0 border-b border-white/5 bg-white/[0.02]">
-        <div class="flex items-center gap-4">
-          <div id="library-back-btn"
-            class="hidden cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-brand">
-            <i data-lucide="arrow-left" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <h2 id="library-modal-title" class="text-[24px] font-bold text-white flex items-center gap-3">
-              <i data-lucide="gamepad-2" class="w-7 h-7 text-brand"></i>
-              Ma Bibliothèque
-            </h2>
-            <p id="library-modal-subtitle" class="text-[13px] text-subtle mt-1 font-medium">Explorez votre collection de
-              jeux par plateforme</p>
-          </div>
-          <div id="library-header-actions" class="ml-auto mr-12 hidden">
-            <!-- Dynamically populated if needed -->
-          </div>
-        </div>
+      <!-- Header -->
+      <div class="px-6 py-4 shrink-0 border-b border-white/5 bg-white/[0.02] flex items-center gap-3">
+        <i data-lucide="gamepad-2" class="w-6 h-6 text-brand shrink-0"></i>
+        <h2 class="text-[20px] font-bold text-white">Ma Bibliothèque</h2>
+        <button id="btn-close-library" class="ml-auto text-subtle hover:text-white transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
 
-      <div id="library-scroll-container" class="flex-1 overflow-y-auto p-8 relative"
-        style="mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);">
-        <div id="library-content-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pb-12">
-          <!-- Dynamically populated -->
+      <!-- Body: sidebar + content -->
+      <div class="flex flex-1 overflow-hidden">
+
+        <!-- Left sidebar -->
+        <div class="w-52 shrink-0 border-r border-white/5 flex flex-col">
+          <!-- Tab buttons -->
+          <div class="flex shrink-0 border-b border-white/5">
+            <button id="lib-tab-platforms"
+              class="flex-1 px-3 py-3 text-[12px] font-bold text-white border-b-2 border-brand transition-colors">Plateformes</button>
+            <button id="lib-tab-consoles"
+              class="flex-1 px-3 py-3 text-[12px] font-bold text-subtle hover:text-white border-b-2 border-transparent transition-colors">Consoles</button>
+          </div>
+          <!-- Sidebar items -->
+          <div id="library-sidebar-items" class="flex-1 overflow-y-auto py-2"></div>
         </div>
+
+        <!-- Right content area -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+          <!-- Barre de recherche -->
+          <div class="px-5 pt-4 pb-2 shrink-0">
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-subtle/50 pointer-events-none"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input id="library-search" type="text" placeholder="Rechercher un jeu…"
+                class="w-full bg-white/[0.04] border border-white/8 rounded-lg pl-8 pr-3 py-2 text-[13px] text-white placeholder-subtle/40 focus:outline-none focus:border-brand/40 transition-colors">
+            </div>
+          </div>
+          <div id="library-game-scroll" class="flex-1 overflow-y-auto px-5 pb-2"
+            style="mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 20px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 20px, black calc(100% - 20px), transparent 100%);">
+            <div id="library-content-grid" class="grid grid-cols-2 lg:grid-cols-3 gap-4 pb-8 pt-2">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -348,6 +369,19 @@
             <label class="block text-[15px] font-semibold text-white/90 mb-3.5 ml-1">Nom d'affichage</label>
             <input type="text" id="settings-display-name" class="input-clean text-[16px] py-3.5 px-5"
               placeholder="Votre nom affiché" autocomplete="off" required minlength="2" maxlength="15">
+          </div>
+
+          <div>
+            <label class="block text-[15px] font-semibold text-white/90 mb-3.5 ml-1">Titre</label>
+            <div class="relative">
+              <select id="settings-active-title"
+                class="input-clean text-[16px] py-3.5 px-5 appearance-none cursor-pointer">
+                <!-- Titles populated by JS -->
+              </select>
+              <div class="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-subtle">
+                <i data-lucide="chevron-down" class="w-5 h-5"></i>
+              </div>
+            </div>
           </div>
 
           <div id="settings-err-wrapper" class="dynamic-banner mt-6">
@@ -665,6 +699,8 @@
   </div>
 
   <script>
+    let currentUserData = null;
+
     // ── Protection XSS ──────────────────────────────────────────────────────
     function escapeHtml(str) {
       if (!str) return '';
@@ -903,17 +939,13 @@
 
 
 
-    // ── Library Logic (New) ───────────────────────────────────────────────────
-
-    const LIBRARY_VIEWS = {
-      PLATFORMS: 'PLATFORMS',
-      GAMES: 'GAMES'
-    };
+    // ── Library Logic ─────────────────────────────────────────────────────────
 
     let libraryState = {
-      view: LIBRARY_VIEWS.PLATFORMS,
+      tab: 'platforms',
       selectedPlatform: null,
-      games: []
+      games: [],
+      connectedPlatforms: []
     };
 
     function openLibrary() {
@@ -923,11 +955,15 @@
         modal.classList.add('opacity-100');
         modal.querySelector('.card').classList.remove('scale-95');
       }, 10);
-
-      // Load data if not already present
       if (currentUserData) {
         libraryState.games = currentUserData.games || [];
-        renderLibrary();
+        libraryState.connectedPlatforms = (currentUserData.platforms || []).map(p => p.platform).filter(Boolean);
+        libraryState.tab = 'platforms';
+        libraryState.selectedPlatform = libraryState.connectedPlatforms[0] || null;
+        document.getElementById('library-search').value = '';
+        lucide.createIcons();
+        renderLibrarySidebar();
+        renderLibraryGames();
       }
     }
 
@@ -935,130 +971,166 @@
       const modal = document.getElementById('library-modal');
       modal.classList.remove('opacity-100');
       modal.querySelector('.card').classList.add('scale-95');
-      setTimeout(() => {
-        modal.classList.add('hidden');
-        // Reset state
-        libraryState.view = LIBRARY_VIEWS.PLATFORMS;
-        libraryState.selectedPlatform = null;
-      }, 300);
+      setTimeout(() => modal.classList.add('hidden'), 300);
     }
 
-    function renderLibrary() {
-      const grid = document.getElementById('library-content-grid');
-      const title = document.getElementById('library-modal-title');
-      const subtitle = document.getElementById('library-modal-subtitle');
-      const backBtn = document.getElementById('library-back-btn');
+    function renderLibrarySidebar() {
+      const sidebar = document.getElementById('library-sidebar-items');
+      const tabPlatforms = document.getElementById('lib-tab-platforms');
+      const tabConsoles = document.getElementById('lib-tab-consoles');
+      const activeTab = 'flex-1 px-3 py-3 text-[12px] font-bold text-white border-b-2 border-brand transition-colors';
+      const inactiveTab = 'flex-1 px-3 py-3 text-[12px] font-bold text-subtle hover:text-white border-b-2 border-transparent transition-colors';
+      tabPlatforms.className = libraryState.tab === 'platforms' ? activeTab : inactiveTab;
+      tabConsoles.className = libraryState.tab === 'consoles' ? activeTab : inactiveTab;
 
-      if (libraryState.view === LIBRARY_VIEWS.PLATFORMS) {
-        title.innerHTML = `<i data-lucide="gamepad-2" class="w-7 h-7 text-brand"></i> Ma Bibliothèque`;
-        subtitle.textContent = 'Explorez votre collection de jeux par plateforme';
-        backBtn.classList.add('hidden');
-
-        // Group games by platform
-        const platformMap = {};
+      if (libraryState.tab === 'platforms') {
+        // Compter les jeux par plateforme
+        const gameCount = {};
         libraryState.games.forEach(g => {
-          const p = g.platform || 'Unknown';
-          if (!platformMap[p]) platformMap[p] = { name: p, gameCount: 0, completedCount: 0, totalPct: 0 };
-          platformMap[p].gameCount++;
-          if (Math.round(g.completion_pct) === 100) platformMap[p].completedCount++;
-          platformMap[p].totalPct += g.completion_pct;
+          const p = g.platform || 'unknown';
+          gameCount[p] = (gameCount[p] || 0) + 1;
         });
-
-        const platforms = Object.values(platformMap).map(p => {
-          const avgPct = (p.totalPct / p.gameCount).toFixed(0);
-          const svg = PLATFORM_SVG[p.name.toLowerCase()] || PLATFORM_SVG['steam'];
-          return `
-            <div data-platform="${escapeHtml(p.name)}" class="library-platform-card card p-6 group cursor-pointer hover:border-brand/40 transition-all active:scale-95">
-              <div class="flex items-center justify-between mb-6">
-                <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-brand group-hover:bg-brand/10 transition-colors">
-                  ${svg.replace('w-4 h-4', 'w-6 h-6')}
-                </div>
-                <div class="text-right">
-                  <div class="num text-[18px] font-bold text-white leading-tight">${p.gameCount}</div>
-                  <div class="text-[10px] text-subtle font-bold uppercase tracking-wider">Jeux</div>
-                </div>
-              </div>
-              <h3 class="text-[18px] font-bold text-white mb-2 group-hover:text-brand transition-colors capitalize">${escapeHtml(p.name)}</h3>
-              <div class="flex items-center justify-between text-[12px] text-subtle mb-4">
-                 <span>Complétion Moy.</span>
-                 <span class="num font-bold text-white">${avgPct}%</span>
-              </div>
-              <div class="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
-                <div class="h-full bg-brand shadow-[0_0_8px_rgba(41,151,255,0.4)]" style="width:${avgPct}%"></div>
-              </div>
-              ${p.completedCount > 0 ? `
-                <div class="mt-4 flex items-center gap-1.5 text-emerald-400 text-[11px] font-bold">
-                  <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> ${p.completedCount} jeu${p.completedCount > 1 ? 's' : ''} à 100%
-                </div>
-              ` : ''}
-            </div>
-          `;
+        // Afficher les plateformes connectées (Steam toujours présent si connecté)
+        sidebar.innerHTML = libraryState.connectedPlatforms.map(name => {
+          const isActive = libraryState.selectedPlatform === name;
+          const svg = PLATFORM_SVG[name.toLowerCase()] || PLATFORM_SVG['steam'];
+          const count = gameCount[name] || 0;
+          return `<button data-platform="${escapeHtml(name)}"
+            class="lib-sidebar-item w-full flex items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${isActive ? 'bg-brand/10 text-white' : 'text-subtle hover:text-white hover:bg-white/5'}">
+            <span class="${isActive ? 'text-brand' : ''}">${svg}</span>
+            <span class="text-[13px] font-semibold capitalize flex-1 truncate">${escapeHtml(name)}</span>
+            <span class="text-[11px] font-bold num ${isActive ? 'text-brand' : 'text-subtle/50'}">${count}</span>
+          </button>`;
         }).join('');
-
-        grid.innerHTML = platforms;
-        grid.querySelectorAll('.library-platform-card').forEach(card => {
-          card.addEventListener('click', () => {
-            libraryState.view = LIBRARY_VIEWS.GAMES;
-            libraryState.selectedPlatform = card.dataset.platform;
-            renderLibrary();
+        sidebar.querySelectorAll('.lib-sidebar-item').forEach(btn => {
+          btn.addEventListener('click', () => {
+            libraryState.selectedPlatform = btn.dataset.platform;
+            document.getElementById('library-search').value = '';
+            renderLibrarySidebar();
+            renderLibraryGames();
           });
         });
       } else {
-        const pName = libraryState.selectedPlatform;
-        const platformGames = libraryState.games.filter(g => g.platform === pName);
-
-        title.innerHTML = `<i data-lucide="gamepad-2" class="w-7 h-7 text-brand"></i> <span class="capitalize">${escapeHtml(pName)}</span>`;
-        subtitle.textContent = `${platformGames.length} jeux trouvés dans cette collection`;
-        backBtn.classList.remove('hidden');
-
-        const cards = platformGames.map(g => {
-          const pct = g.completion_pct.toFixed(0);
-          const safeCoverUrl = sanitizeUrl(g.cover_image_url);
-          const cover = safeCoverUrl
-            ? `<img src="${escapeHtml(safeCoverUrl)}" class="w-full h-full object-cover" onerror="this.classList.add('hidden');this.nextElementSibling.classList.remove('hidden')">` +
-              `<div class="hidden flex items-center justify-center w-full h-full text-3xl">🎮</div>`
-            : `<div class="flex items-center justify-center w-full h-full text-3xl">🎮</div>`;
-          return `
-            <div class="card overflow-hidden group hover:border-brand/40 transition-all duration-300 flex flex-col h-full">
-              <div class="aspect-square bg-white/[0.02] overflow-hidden relative">
-                ${cover}
-                <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent"></div>
-                <div class="absolute bottom-3 left-3 flex items-center gap-2">
-                  <span class="px-2 py-0.5 rounded bg-brand/80 text-white text-[10px] font-bold num">${pct}%</span>
-                </div>
-              </div>
-              <div class="p-4 flex flex-col flex-1">
-                <div class="text-[15px] font-bold text-white truncate mb-2 group-hover:text-brand transition-colors">${escapeHtml(g.title)}</div>
-                <div class="flex items-center justify-between text-[11px] text-subtle/60 mb-3 font-bold uppercase tracking-wider">
-                  <div class="flex items-center gap-1.5">
-                    <i data-lucide="award" class="w-3.5 h-3.5"></i>
-                    <span class="num">${g.achievements_unlocked} / ${g.achievements_total}</span>
-                  </div>
-                  <div class="flex items-center gap-1.5">
-                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                    <span>${fmtTime(g.playtime_minutes)}</span>
-                  </div>
-                </div>
-                <div class="mt-auto pt-2">
-                  <div class="h-1 bg-white/[0.05] rounded-full overflow-hidden">
-                    <div class="h-full bg-brand shadow-[0_0_8px_rgba(41,151,255,0.4)]" style="width:${pct}%"></div>
-                  </div>
-                </div>
-              </div>
-            </div>`;
-        }).join('');
-
-        grid.innerHTML = cards;
+        sidebar.innerHTML = `<div class="px-4 py-8 text-[13px] text-subtle text-center leading-relaxed">Aucune console<br>connectée</div>`;
       }
+    }
+
+    function renderLibraryGames(resetScroll = true) {
+      const grid = document.getElementById('library-content-grid');
+      if (resetScroll) {
+        const scrollEl = document.getElementById('library-game-scroll');
+        if (scrollEl) { scrollEl.scrollTop = 0; libScrollTarget = 0; libScrollCurrent = 0; }
+      }
+      if (libraryState.tab === 'consoles' || !libraryState.selectedPlatform) {
+        grid.innerHTML = `<div class="col-span-3 text-center text-subtle py-16 text-[13px]">Sélectionnez une plateforme</div>`;
+        return;
+      }
+      const query = (document.getElementById('library-search')?.value || '').toLowerCase().trim();
+      const allPlatformGames = libraryState.games.filter(g => g.platform === libraryState.selectedPlatform);
+      const games = query
+        ? allPlatformGames.filter(g => g.title.toLowerCase().includes(query))
+        : allPlatformGames;
+      if (!games.length) {
+        grid.innerHTML = `<div class="col-span-3 text-center text-subtle py-16 text-[13px]">${query ? 'Aucun résultat pour «\u00a0' + escapeHtml(query) + '\u00a0»' : 'Aucun jeu trouvé'}</div>`;
+        return;
+      }
+      grid.innerHTML = games.map(g => {
+        const pct = g.completion_pct.toFixed(0);
+        const isSteam = g.platform === 'steam' && g.platform_game_id;
+        const imgUrl = isSteam
+          ? `https://cdn.akamai.steamstatic.com/steam/apps/${encodeURIComponent(g.platform_game_id)}/header.jpg`
+          : sanitizeUrl(g.cover_image_url);
+        const badge = pct === '100'
+          ? `<div class="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500/90 flex items-center justify-center shadow">
+               <i data-lucide="check" class="w-3 h-3 text-white"></i>
+             </div>`
+          : `<span class="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-white text-[10px] font-bold num">${pct}%</span>`;
+        const img = imgUrl
+          ? `<img src="${escapeHtml(imgUrl)}" alt="" class="w-full h-full object-cover"
+               onerror="this.classList.add('hidden');this.nextElementSibling.classList.remove('hidden')">
+             <div class="hidden w-full h-full bg-white/[0.03] flex items-center justify-center">
+               <i data-lucide="gamepad-2" class="w-8 h-8 text-subtle/30"></i>
+             </div>`
+          : `<div class="w-full h-full bg-white/[0.03] flex items-center justify-center">
+               <i data-lucide="gamepad-2" class="w-8 h-8 text-subtle/30"></i>
+             </div>`;
+        return `
+          <div class="card overflow-hidden group hover:border-brand/40 transition-all duration-300 flex flex-col">
+            <div class="relative ${isSteam ? 'aspect-[460/215]' : 'aspect-square'} bg-white/[0.02] overflow-hidden">
+              ${img}
+              ${badge}
+            </div>
+            <div class="p-3 flex flex-col gap-1.5">
+              <div class="text-[13px] font-bold text-white truncate group-hover:text-brand transition-colors">${escapeHtml(g.title)}</div>
+              <div class="flex items-center justify-between text-[11px] text-subtle/60 font-bold">
+                <span class="flex items-center gap-1">
+                  <i data-lucide="award" class="w-3 h-3"></i>
+                  <span class="num">${g.achievements_unlocked}/${g.achievements_total}</span>
+                </span>
+                <span class="flex items-center gap-1">
+                  <i data-lucide="clock" class="w-3 h-3"></i>
+                  ${fmtTime(g.playtime_minutes)}
+                </span>
+              </div>
+              <div class="h-0.5 bg-white/[0.05] rounded-full overflow-hidden mt-0.5">
+                <div class="h-full bg-brand" style="width:${pct}%"></div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
       lucide.createIcons();
     }
 
     document.getElementById('btn-close-library').addEventListener('click', closeLibrary);
-    document.getElementById('library-back-btn').addEventListener('click', () => {
-      libraryState.view = LIBRARY_VIEWS.PLATFORMS;
-      libraryState.selectedPlatform = null;
-      renderLibrary();
+    document.getElementById('lib-tab-platforms').addEventListener('click', () => {
+      libraryState.tab = 'platforms';
+      if (!libraryState.selectedPlatform) libraryState.selectedPlatform = libraryState.connectedPlatforms[0] || null;
+      document.getElementById('library-search').value = '';
+      renderLibrarySidebar();
+      renderLibraryGames();
     });
+    document.getElementById('lib-tab-consoles').addEventListener('click', () => {
+      libraryState.tab = 'consoles';
+      libraryState.selectedPlatform = null;
+      document.getElementById('library-search').value = '';
+      renderLibrarySidebar();
+      renderLibraryGames();
+    });
+    document.getElementById('library-search').addEventListener('input', () => renderLibraryGames(false));
+
+    // ── Smooth scroll zone jeux (lerp comme index.html) ───────────────────
+    let libScrollTarget = 0;
+    let libScrollCurrent = 0;
+    let libScrollAnimating = false;
+
+    function libSmoothScrollStep() {
+      const el = document.getElementById('library-game-scroll');
+      if (!el) return;
+      libScrollCurrent += (libScrollTarget - libScrollCurrent) * 0.08;
+      el.scrollTop = libScrollCurrent;
+      if (Math.abs(libScrollTarget - libScrollCurrent) < 0.5) {
+        libScrollCurrent = libScrollTarget;
+        el.scrollTop = libScrollCurrent;
+        libScrollAnimating = false;
+      } else {
+        requestAnimationFrame(libSmoothScrollStep);
+      }
+    }
+
+    document.getElementById('library-game-scroll').addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const el = e.currentTarget;
+      if (!libScrollAnimating) {
+        libScrollCurrent = el.scrollTop;
+        libScrollTarget = el.scrollTop;
+      }
+      libScrollTarget += e.deltaY * 0.7;
+      libScrollTarget = Math.max(0, Math.min(libScrollTarget, el.scrollHeight - el.clientHeight));
+      if (!libScrollAnimating) {
+        libScrollAnimating = true;
+        requestAnimationFrame(libSmoothScrollStep);
+      }
+    }, { passive: false });
 
     function renderGames(games, isMe) {
       const el = document.getElementById('ph-games');
@@ -1068,7 +1140,7 @@
 
       // Split : en cours (gauche) | complétés 100% (droite)
       const inProgress = games.filter(g => Math.round(g.completion_pct) < 100).slice(0, 5);
-      const completed  = games.filter(g => Math.round(g.completion_pct) === 100).slice(0, 5);
+      const completed = games.filter(g => Math.round(g.completion_pct) === 100).slice(0, 5);
 
       const makeCard = g => {
         const pct = g.completion_pct.toFixed(0);
@@ -1092,8 +1164,8 @@
           <div class="px-3 py-1.5 flex items-center justify-between bg-white/[0.02]">
             <span class="text-[10px] text-subtle/60 capitalize">${escapeHtml(g.platform)}</span>
             ${pct === '100'
-              ? `<i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400"></i>`
-              : `<span class="num text-[10px] font-bold text-brand">${pct}%</span>`}
+            ? `<i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400"></i>`
+            : `<span class="num text-[10px] font-bold text-brand">${pct}%</span>`}
           </div>
         </div>`;
       };
@@ -1111,8 +1183,8 @@
         </div>` : '';
 
       el.innerHTML = `<div class="grid lg:grid-cols-2 gap-4">
-        ${col('gamepad-2',   'text-brand',        'En cours',        inProgress)}
-        ${col('check-circle','text-emerald-400',   'Terminés à 100%', completed)}
+        ${col('gamepad-2', 'text-brand', 'En cours', inProgress)}
+        ${col('check-circle', 'text-emerald-400', 'Terminés à 100%', completed)}
       </div>`;
 
       lucide.createIcons();
@@ -1132,7 +1204,7 @@
           </div></div>`;
         return;
       }
-      const rows = list.slice(0, 4).map(a => {
+      const rows = list.slice(0, 5).map(a => {
         const dt = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString('fr-FR') : '—';
         const rarityColor = {
           'common': 'emerald-400',
@@ -1153,7 +1225,7 @@
           </span>`;
 
         return `
-        <div class="group flex items-center gap-4 py-4 px-2 -mx-2 rounded-2xl hover:bg-white/[0.02] transition-all duration-300 border-b border-white/[0.03] last:border-0 border-transparent">
+        <div class="group flex items-center gap-4 py-3.5 px-2 -mx-2 rounded-2xl hover:bg-white/[0.02] transition-all duration-300 border-b border-white/[0.03] last:border-0 border-transparent">
           <div class="relative w-12 h-12 shrink-0">
             <div class="absolute inset-0 bg-${rarityColor}/15 blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div class="relative w-12 h-12 bg-white/[0.03] border border-white/10 flex items-center justify-center overflow-hidden z-10 transition-transform group-hover:scale-[1.02]">
@@ -1283,18 +1355,24 @@
 
     function openSettings(targetTab) {
       const modal = document.getElementById('settings-modal');
-      const inner = modal.querySelector('.card');
+      const inner = modal?.querySelector('.card');
       const errorWrapper = document.getElementById('settings-err-wrapper');
       const successWrapper = document.getElementById('settings-success-wrapper');
       const nameInput = document.getElementById('settings-display-name');
 
-      errorWrapper.classList.remove('show');
-      successWrapper.classList.remove('show');
+      if (!modal || !inner) return;
+
+      errorWrapper?.classList.remove('show');
+      successWrapper?.classList.remove('show');
 
       const currentName = document.querySelector('#ph-header h1')?.textContent;
-      if (currentName) nameInput.value = currentName;
+      if (currentName && nameInput) nameInput.value = currentName;
 
-      switchSettingsTab(targetTab || 'profile');
+      const currentTitle = document.querySelector('#ph-header .text-subtle.px-2.py-0.5')?.textContent;
+      loadUnlockedTitles(currentTitle);
+
+      const activeTab = (typeof targetTab === 'string') ? targetTab : 'profile';
+      switchSettingsTab(activeTab);
 
       modal.classList.remove('hidden');
       setTimeout(() => {
@@ -1302,7 +1380,7 @@
         inner.classList.remove('scale-95');
       }, 10);
 
-      if (!targetTab || targetTab === 'profile') nameInput.focus();
+      if (activeTab === 'profile' && nameInput) nameInput.focus();
     }
 
     function closeSettings() {
@@ -1325,8 +1403,15 @@
       const errorDiv = document.getElementById('settings-err');
       const errorWrapper = document.getElementById('settings-err-wrapper');
       const successWrapper = document.getElementById('settings-success-wrapper');
+      const nameInput = document.getElementById('settings-display-name');
+      const titleInput = document.getElementById('settings-active-title');
       const btn = e.target.querySelector('button[type="submit"]');
-      const newName = document.getElementById('settings-display-name').value.trim();
+
+      errorWrapper.classList.remove('show');
+      successWrapper.classList.remove('show');
+
+      const newName = nameInput.value.trim();
+      const newTitle = titleInput.value;
 
       errorWrapper.classList.remove('show');
       successWrapper.classList.remove('show');
@@ -1342,7 +1427,10 @@
       btn.disabled = true;
 
       try {
-        const payload = { display_name: newName };
+        const payload = {
+          display_name: newName,
+          active_title: newTitle
+        };
 
         const res = await fetch('/api/users/me', {
           method: 'PUT',
@@ -1362,6 +1450,9 @@
         const h1 = document.querySelector('#ph-header h1');
         if (h1) h1.textContent = newName || localStorage.getItem('auth_user');
 
+        const titleSpan = document.querySelector('#ph-header .text-subtle.px-2.py-0.5');
+        if (titleSpan) titleSpan.textContent = newTitle;
+
         setTimeout(() => closeSettings(), 1500);
 
       } catch (err) {
@@ -1371,6 +1462,33 @@
         btn.innerHTML = originalHtml;
         btn.disabled = false;
         lucide.createIcons();
+      }
+    }
+
+    async function loadUnlockedTitles(currentActiveTitle) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const select = document.getElementById('settings-active-title');
+      if (!select) return;
+      select.innerHTML = '<option value="">Chargement...</option>';
+
+      try {
+        const res = await fetch('/api/users/me/titles', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error();
+
+        const titles = await res.json();
+        select.innerHTML = titles.map(t => `
+          <option value="${escapeHtml(t.name)}" ${t.name === currentActiveTitle ? 'selected' : ''}>
+            ${escapeHtml(t.name)}
+          </option>
+        `).join('');
+
+        if (window.lucide) lucide.createIcons();
+      } catch (err) {
+        select.innerHTML = '<option value="">Erreur de chargement</option>';
       }
     }
 
@@ -2017,6 +2135,7 @@
         if (res.status === 404) throw new Error('404');
         if (!res.ok) throw new Error('err');
         const d = await res.json();
+        currentUserData = d;
 
         document.getElementById('profile-loading').classList.add('hidden');
         const c = document.getElementById('profile-content');

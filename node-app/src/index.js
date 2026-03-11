@@ -69,8 +69,8 @@ app.use(createProxyMiddleware({
   pathFilter: '/api',
   target: RUST_API_URL,
   changeOrigin: true,
-  timeout: 10000,
-  proxyTimeout: 10000,
+  timeout: 30000,
+  proxyTimeout: 30000,
   on: {
     error: (_err, _req, res) => {
       if (!res.headersSent) {

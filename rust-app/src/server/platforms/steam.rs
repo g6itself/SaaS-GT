@@ -135,7 +135,8 @@ async fn fetch_owned_games(
                     let appid = g["appid"].as_u64()?;
                     let name = g["name"].as_str().unwrap_or("").to_string();
                     if name.is_empty() { return None; }
-                    Some(SteamOwnedGame { appid, name })
+                    let playtime_minutes = g["playtime_forever"].as_u64().unwrap_or(0) as i32;
+                    Some(SteamOwnedGame { appid, name, playtime_minutes })
                 })
                 .collect()
         })
@@ -380,12 +381,13 @@ pub async fn sync_steam_achievements(
         sqlx::query(
             r#"
             INSERT INTO user_game_stats
-                (user_id, game_id, achievements_unlocked, achievements_total, completion_pct, updated_at)
-            VALUES ($1, $2, $3, $4, $5, NOW())
+                (user_id, game_id, achievements_unlocked, achievements_total, completion_pct, playtime_minutes, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NOW())
             ON CONFLICT (user_id, game_id) DO UPDATE
             SET achievements_unlocked = $3,
                 achievements_total     = $4,
                 completion_pct         = $5,
+                playtime_minutes       = $6,
                 updated_at             = NOW()
             "#,
         )
@@ -394,6 +396,7 @@ pub async fn sync_steam_achievements(
         .bind(unlocked_count)
         .bind(total)
         .bind(pct)
+        .bind(game.playtime_minutes)
         .execute(pool)
         .await?;
 
@@ -446,6 +449,7 @@ pub async fn sync_steam_achievements(
 struct SteamOwnedGame {
     appid: u64,
     name: String,
+    playtime_minutes: i32,
 }
 
 struct SteamAchievementSchema {

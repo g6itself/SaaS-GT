@@ -115,3 +115,11 @@ bin-default-features = false
 lib-features = ["hydrate"]
 lib-default-features = false
 lib-profile-release = "wasm-release"
+
+# ─── Optimisations de développement ──────────────────────────────────────────
+# Important : Argon2 est extrêmement lent en mode "debug" non optimisé,
+# ce qui fait timeout les requêtes côté client (12s+).
+# On compile les dépendances avec les optimisations maximales (opt-level = 3)
+# pour retrouver des performances cryptographiques normales.
+[profile.dev.package."*"]
+opt-level = 3

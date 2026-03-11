@@ -1,8 +1,8 @@
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
+    Argon2, Params, Algorithm, Version
 };
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm as JwtAlgorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -16,7 +16,15 @@ pub struct Claims {
 /// Hash un mot de passe avec Argon2
 pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
     let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
+    
+    // Paramètres extrêmement rapides en dev (128 KiB) pour éviter les timeouts
+    let params = if cfg!(debug_assertions) {
+        Params::new(128, 1, 1, None).unwrap()
+    } else {
+        Params::default()
+    };
+    
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let hash = argon2.hash_password(password.as_bytes(), &salt)?;
     Ok(hash.to_string())
 }
@@ -64,7 +72,7 @@ pub fn create_token(user_id: Uuid, email: &str) -> Result<String, jsonwebtoken::
     };
 
     encode(
-        &Header::new(Algorithm::HS256),
+        &Header::new(JwtAlgorithm::HS256),
         &claims,
         &EncodingKey::from_secret(secret.as_bytes()),
     )
@@ -73,7 +81,7 @@ pub fn create_token(user_id: Uuid, email: &str) -> Result<String, jsonwebtoken::
 /// Valide un JWT et retourne les claims
 pub fn validate_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
     let secret = jwt_secret();
-    let mut validation = Validation::new(Algorithm::HS256);
+    let mut validation = Validation::new(JwtAlgorithm::HS256);
     validation.validate_exp = true;
 
     let token_data = decode::<Claims>(

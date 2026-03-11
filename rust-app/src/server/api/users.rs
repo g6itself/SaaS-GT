@@ -57,6 +57,13 @@ struct AchievementRow {
 struct UpdateProfileRequest {
     display_name: Option<String>,
     profile_image_url: Option<String>,
+    active_title: Option<String>,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+struct TitleRow {
+    name: String,
+    description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,6 +80,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/me/avatar", web::post().to(upload_avatar))
             .route("/me/steam-apikey", web::get().to(get_steam_apikey))
             .route("/me/steam-apikey", web::patch().to(set_steam_apikey))
+            .route("/me/titles", web::get().to(get_my_titles))
             .route("/{username}", web::get().to(get_user_profile)),
     );
 }
@@ -336,12 +344,14 @@ async fn update_me(
         SET 
             display_name = COALESCE($1, display_name), 
             profile_image_url = COALESCE($2, profile_image_url),
+            active_title = COALESCE($3, active_title),
             updated_at = NOW() 
-        WHERE id = $3 AND is_active = true
+        WHERE id = $4 AND is_active = true
         "#,
     )
     .bind(&display_name)
     .bind(&profile_image_url)
+    .bind(&body.active_title)
     .bind(claims.sub)
     .execute(pool.get_ref())
     .await
@@ -585,7 +595,7 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
         WHERE ua.user_id = (SELECT id FROM users WHERE username = $1)
           AND ua.is_unlocked = true
         ORDER BY ua.unlocked_at DESC
-        LIMIT 4
+        LIMIT 5
         "#,
     )
     .bind(&username)
@@ -611,4 +621,36 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
         "completed_games": completed_games,
         "recent_achievements": recent_achievements,
     }))
+}
+
+// ── GET /api/users/me/titles ─────────────────────────────────────────────────
+
+async fn get_my_titles(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
+    let claims = match auth_from_request(&req) {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+
+    let titles = sqlx::query_as::<_, TitleRow>(
+        r#"
+        SELECT t.name, t.description
+        FROM titles t
+        JOIN user_titles ut ON ut.title_id = t.id
+        WHERE ut.user_id = $1
+        ORDER BY t.created_at ASC
+        "#,
+    )
+    .bind(claims.sub)
+    .fetch_all(pool.get_ref())
+    .await;
+
+    match titles {
+        Ok(t) => HttpResponse::Ok().json(t),
+        Err(e) => {
+            tracing::error!("Erreur get_my_titles: {}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Erreur lors de la récupération des titres"
+            }))
+        }
+    }
 }
