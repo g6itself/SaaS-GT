@@ -17,10 +17,15 @@ struct UserProfileRow {
     total_points: i64,
     created_at: DateTime<Utc>,
     rank: i64,
+    total_players: i64,
+    rank_snapshot: Option<i64>,
+    rank_snapshot_at: Option<DateTime<Utc>>,
     total_achievements: i64,
     completion_avg: f64,
     total_possible_achievements: i64,
     games_completed: i64,
+    last_seen_at: Option<DateTime<Utc>>,
+    is_online: bool,
 }
 
 #[derive(Debug, Serialize, sqlx::FromRow)]
@@ -30,28 +35,6 @@ struct PlatformRow {
     connected_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
-struct GameRow {
-    title: String,
-    cover_image_url: Option<String>,
-    completion_pct: f64,
-    playtime_minutes: Option<i32>,
-    achievements_unlocked: i32,
-    achievements_total: i32,
-    platform: String,
-    platform_game_id: String,
-}
-
-#[derive(Debug, Serialize, sqlx::FromRow)]
-struct AchievementRow {
-    name: String,
-    description: Option<String>,
-    icon_url: Option<String>,
-    rarity: String,
-    points: i32,
-    game_title: String,
-    unlocked_at: Option<DateTime<Utc>>,
-}
 
 #[derive(Debug, Deserialize)]
 struct UpdateProfileRequest {
@@ -77,10 +60,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/users")
             .route("/me", web::put().to(update_me))
+            .route("/me", web::delete().to(delete_me))
+            .route("/me/delete", web::post().to(delete_me))
             .route("/me/avatar", web::post().to(upload_avatar))
             .route("/me/steam-apikey", web::get().to(get_steam_apikey))
             .route("/me/steam-apikey", web::patch().to(set_steam_apikey))
             .route("/me/titles", web::get().to(get_my_titles))
+            .route("/me/heartbeat", web::patch().to(heartbeat))
             .route("/{username}", web::get().to(get_user_profile)),
     );
 }
@@ -365,6 +351,32 @@ async fn update_me(
     }
 }
 
+// ── DELETE /api/users/me ──────────────────────────────────────────────────────
+
+async fn delete_me(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
+    let claims = match auth_from_request(&req) {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+
+    match sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(claims.sub)
+        .execute(pool.get_ref())
+        .await
+    {
+        Ok(_) => {
+            tracing::info!("Compte supprime: {}", claims.sub);
+            HttpResponse::Ok().json(serde_json::json!({ "ok": true }))
+        }
+        Err(e) => {
+            tracing::error!("Erreur DELETE user {}: {}", claims.sub, e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Erreur lors de la suppression du compte"
+            }))
+        }
+    }
+}
+
 // ── GET /api/users/me/steam-apikey ───────────────────────────────────────────
 
 async fn get_steam_apikey(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
@@ -408,7 +420,7 @@ async fn set_steam_apikey(
     // Supprimer la cle si vide
     if key.is_empty() {
         let _ = sqlx::query(
-            "UPDATE users SET steam_api_key_enc = NULL, updated_at = NOW() WHERE id = $1",
+            "UPDATE users SET steam_api_key_enc = NULL, steam_api_key_hash = NULL, updated_at = NOW() WHERE id = $1",
         )
         .bind(claims.sub)
         .execute(pool.get_ref())
@@ -423,6 +435,50 @@ async fn set_steam_apikey(
         }));
     }
 
+    // Vérifier que la clé est valide auprès de l'API Steam
+    {
+        let check_url = format!(
+            "https://api.steampowered.com/ISteamWebAPIUtil/GetSupportedAPIList/v1/?key={}",
+            key
+        );
+        let valid = match reqwest::get(&check_url).await {
+            Ok(r) => r.status().is_success(),
+            Err(_) => {
+                return HttpResponse::BadGateway().json(serde_json::json!({
+                    "error": "Impossible de vérifier la clé API Steam. Réessayez dans un instant."
+                }));
+            }
+        };
+        if !valid {
+            return HttpResponse::UnprocessableEntity().json(serde_json::json!({
+                "error": "Clé API Steam invalide. Vérifiez la clé sur steamcommunity.com/dev/apikey"
+            }));
+        }
+    }
+
+    // Vérifier l'unicité : la clé ne doit pas être déjà utilisée par un autre compte.
+    // On utilise un hash SHA-256 déterministe calculé par PostgreSQL (extension pgcrypto).
+    let already_used = sqlx::query_scalar::<_, bool>(
+        r#"
+        SELECT EXISTS (
+            SELECT 1 FROM users
+            WHERE steam_api_key_hash = encode(digest($1, 'sha256'), 'hex')
+              AND id != $2
+        )
+        "#,
+    )
+    .bind(key)
+    .bind(claims.sub)
+    .fetch_one(pool.get_ref())
+    .await
+    .unwrap_or(false);
+
+    if already_used {
+        return HttpResponse::Conflict().json(serde_json::json!({
+            "error": "Cette clé API Steam est déjà utilisée par un autre compte"
+        }));
+    }
+
     let encrypted = match crate::server::crypto::encrypt(key) {
         Ok(enc) => enc,
         Err(e) => {
@@ -433,15 +489,28 @@ async fn set_steam_apikey(
     };
 
     match sqlx::query(
-        "UPDATE users SET steam_api_key_enc = $1, updated_at = NOW() WHERE id = $2 AND is_active = true",
+        r#"
+        UPDATE users
+        SET steam_api_key_enc  = $1,
+            steam_api_key_hash = encode(digest($2, 'sha256'), 'hex'),
+            updated_at         = NOW()
+        WHERE id = $3 AND is_active = true
+        "#,
     )
     .bind(&encrypted)
+    .bind(key)
     .bind(claims.sub)
     .execute(pool.get_ref())
     .await
     {
         Ok(_) => HttpResponse::Ok().json(serde_json::json!({ "ok": true, "has_key": true })),
         Err(e) => {
+            // Violation de la contrainte UNIQUE (concurrence)
+            if e.to_string().contains("uq_users_steam_api_key_hash") {
+                return HttpResponse::Conflict().json(serde_json::json!({
+                    "error": "Cette clé API Steam est déjà utilisée par un autre compte"
+                }));
+            }
             tracing::error!("Erreur set_steam_apikey: {}", e);
             HttpResponse::InternalServerError()
                 .json(serde_json::json!({ "error": "Erreur interne du serveur" }))
@@ -476,6 +545,14 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
 
     let profile = sqlx::query_as::<_, UserProfileRow>(
         r#"
+        WITH ranked AS (
+            SELECT
+                id,
+                RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts,
+                COUNT(*) OVER ()::BIGINT AS total_players
+            FROM users
+            WHERE is_active = true
+        )
         SELECT
             u.username,
             u.display_name,
@@ -484,13 +561,18 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
             u.league::TEXT AS league,
             u.total_points,
             u.created_at,
-            COALESCE(lc.rank_global, 0)::BIGINT AS rank,
+            r.rank_pts AS rank,
+            r.total_players,
+            u.rank_snapshot,
+            u.rank_snapshot_at,
             u.total_achievements_count::BIGINT AS total_achievements,
-            COALESCE(lc.completion_avg, 0.0)::FLOAT8 AS completion_avg,
+            0.0::FLOAT8 AS completion_avg,
             u.total_possible_achievements::BIGINT AS total_possible_achievements,
-            u.games_completed::BIGINT AS games_completed
+            u.games_completed::BIGINT AS games_completed,
+            u.last_seen_at,
+            (u.last_seen_at IS NOT NULL AND u.last_seen_at > NOW() - INTERVAL '15 minutes') AS is_online
         FROM users u
-        LEFT JOIN leaderboard_cache lc ON lc.user_id = u.id
+        JOIN ranked r ON r.id = u.id
         WHERE u.username = $1 AND u.is_active = true
         "#,
     )
@@ -529,80 +611,6 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
     .await
     .unwrap_or_default();
 
-    let games = sqlx::query_as::<_, GameRow>(
-        r#"
-        SELECT
-            g.title,
-            g.cover_image_url,
-            ugs.completion_pct::FLOAT8 AS completion_pct,
-            ugs.playtime_minutes,
-            ugs.achievements_unlocked,
-            ugs.achievements_total,
-            gpi.platform::TEXT AS platform,
-            gpi.platform_game_id
-        FROM user_game_stats ugs
-        JOIN games g ON g.id = ugs.game_id
-        JOIN game_platform_ids gpi ON g.id = gpi.game_id
-        WHERE ugs.user_id = (SELECT id FROM users WHERE username = $1)
-        ORDER BY ugs.last_played_at DESC NULLS LAST, ugs.completion_pct DESC
-        "#,
-    )
-    .bind(&username)
-    .fetch_all(pool.get_ref())
-    .await
-    .unwrap_or_default();
-
-    let completed_games = sqlx::query_as::<_, GameRow>(
-        r#"
-        SELECT
-            g.title,
-            g.cover_image_url,
-            ugs.completion_pct::FLOAT8 AS completion_pct,
-            ugs.playtime_minutes,
-            ugs.achievements_unlocked,
-            ugs.achievements_total,
-            gpi.platform::TEXT AS platform,
-            gpi.platform_game_id
-        FROM user_game_stats ugs
-        JOIN games g ON g.id = ugs.game_id
-        JOIN game_platform_ids gpi ON g.id = gpi.game_id
-        WHERE ugs.user_id = (SELECT id FROM users WHERE username = $1)
-          AND ugs.achievements_total > 0
-          AND ugs.achievements_unlocked >= ugs.achievements_total
-        ORDER BY ugs.updated_at DESC
-        LIMIT 5
-        "#,
-    )
-    .bind(&username)
-    .fetch_all(pool.get_ref())
-    .await
-    .unwrap_or_default();
-
-    let recent_achievements = sqlx::query_as::<_, AchievementRow>(
-        r#"
-        SELECT
-            a.name,
-            a.description,
-            a.icon_url,
-            a.rarity::TEXT AS rarity,
-            a.points,
-            g.title AS game_title,
-            ua.unlocked_at
-        FROM user_achievements ua
-        JOIN achievements a ON a.id = ua.achievement_id
-        JOIN game_platform_ids gpi ON gpi.id = a.game_platform_id
-        JOIN games g ON g.id = gpi.game_id
-        WHERE ua.user_id = (SELECT id FROM users WHERE username = $1)
-          AND ua.is_unlocked = true
-        ORDER BY ua.unlocked_at DESC
-        LIMIT 5
-        "#,
-    )
-    .bind(&username)
-    .fetch_all(pool.get_ref())
-    .await
-    .unwrap_or_default();
-
     HttpResponse::Ok().json(serde_json::json!({
         "username": profile.username,
         "display_name": profile.display_name,
@@ -611,16 +619,33 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
         "league": profile.league,
         "total_points": profile.total_points,
         "rank": profile.rank,
+        "total_players": profile.total_players,
+        "rank_snapshot": profile.rank_snapshot,
+        "rank_snapshot_at": profile.rank_snapshot_at,
         "total_achievements": profile.total_achievements,
         "total_possible_achievements": profile.total_possible_achievements,
         "completion_avg": profile.completion_avg,
         "games_completed": profile.games_completed,
         "member_since": profile.created_at,
         "platforms": platforms,
-        "games": games,
-        "completed_games": completed_games,
-        "recent_achievements": recent_achievements,
+        "is_online": profile.is_online,
+        "last_seen_at": profile.last_seen_at,
     }))
+}
+
+// ── PATCH /api/users/me/heartbeat ─────────────────────────────────────────────
+
+async fn heartbeat(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
+    let claims = match auth_from_request(&req) {
+        Ok(c) => c,
+        Err(r) => return r,
+    };
+    sqlx::query("UPDATE users SET last_seen_at = NOW() WHERE id = $1")
+        .bind(claims.sub)
+        .execute(pool.get_ref())
+        .await
+        .ok();
+    HttpResponse::NoContent().finish()
 }
 
 // ── GET /api/users/me/titles ─────────────────────────────────────────────────

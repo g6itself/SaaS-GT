@@ -24,6 +24,10 @@
         tailwind.config = {
             theme: {
                 extend: {
+                    screens: {
+                        '3xl': '1920px',
+                        '4k': '2560px',
+                    },
                     colors: {
                         brand: '#2997ff',
                         surface: '#111111',
@@ -50,8 +54,11 @@
             -webkit-font-smoothing: antialiased;
             letter-spacing: -0.011em;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
             display: flex;
             flex-direction: column;
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
         }
 
         .nav-glass {
@@ -176,34 +183,86 @@
             pointer-events: auto;
             visibility: visible;
         }
+
+        /* Hauteur réduite : Scaling graduel */
+        @media (max-height: 750px) {
+            #auth-title { font-size: 1.25rem; margin-bottom: 0.5rem; }
+            .card { border-radius: 12px; }
+            .tab-btn { padding: 8px; font-size: 12px; }
+            #form-wrapper { min-height: 150px !important; }
+            .form-view { padding: 1rem !important; }
+            .space-y-4 > * + * { margin-top: 0.5rem !important; }
+            .input-clean { padding: 8px 10px; font-size: 0.85rem; }
+            .btn-primary { padding: 8px; margin-top: 1rem !important; }
+            .dynamic-banner { margin-top: 0.5rem !important; }
+            .border-t.bg-black\/30 { padding: 1rem !important; }
+            .border-t.bg-black\/30 span { margin-bottom: 0.5rem !important; }
+        }
+
+        @media (max-height: 600px) {
+            #auth-title { display: none; }
+            .form-view p { margin-top: 0.5rem !important; }
+            .border-t.bg-black\/30 { display: none; }
+            .tab-btn { padding: 6px; font-size: 11px; }
+        }
+
+        @media (max-height: 500px) {
+            main { padding: 0.5rem !important; }
+            .card { transform: scale(0.8); transform-origin: center center; margin: 0 auto; }
+            footer { padding-top: 0.25rem !important; padding-bottom: calc(0.25rem + env(safe-area-inset-bottom)) !important; font-size: 9px !important; }
+        }
+
+        @media (max-height: 380px) {
+            .card { transform: scale(0.65); }
+            nav { display: none !important; }
+            main { padding: 0 !important; }
+        }
+
+        @media (max-height: 320px) {
+            .card { transform: scale(0.55); }
+            footer { display: none !important; }
+        }
     </style>
 </head>
 
-<body class="flex flex-col relative overflow-hidden">
+<body class="h-screen flex flex-col relative overflow-hidden">
 
-    <!-- Nav ultra minimale -->
-    <nav class="absolute top-0 w-full z-50">
-        <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-            <a href="/index.html"
-                class="flex items-center gap-3 font-medium text-[14px] text-subtle hover:text-white transition-colors">
-                <div
-                    class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/10">
-                    <i data-lucide="triangle" class="w-3 h-3 text-white"></i>
+    <!-- Nav ultra minimale responsive -->
+    <nav class="w-full z-50 pt-[env(safe-area-inset-top)]">
+        <div class="max-w-[1920px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+            <a href="/index.html" class="flex items-center gap-3 font-medium text-[14px] text-white transition-colors group">
+                <div class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 transition-transform group-hover:scale-110 group-hover:bg-brand/20 group-hover:border-brand/50">
+                    <i data-lucide="triangle" class="w-3 h-3 text-brand"></i>
                 </div>
-                Glorious Trophée
+                <span class="hidden sm:inline">Glorious Trophée</span>
             </a>
 
-            <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
-                <a href="/index.html" class="hover:text-white transition-colors hidden sm:block">Panthéon</a>
-                <a id="nav-mon-espace" href="/profile.html"
-                    class="hover:text-white transition-colors hidden sm:block auth-hidden">Mon Espace</a>
-                <a id="nav-login" href="/login.html"
-                    class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all border border-white/5 hover:scale-105 active:scale-95">Connexion</a>
-                <button id="nav-logout"
-                    class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]">Déconnexion</button>
+            <!-- Desktop Links -->
+            <div class="hidden md:flex items-center gap-6 text-[13px] font-medium text-subtle">
+                <a href="/index.html" class="hover:text-white transition-colors">Panthéon</a>
+                <a id="nav-mon-espace" href="/profile.html" class="hover:text-white transition-colors auth-hidden">Mon Espace</a>
+                <a id="nav-login" href="/login.html" class="text-white bg-white/10 hover:bg-brand hover:text-white px-4 py-1.5 rounded-full transition-all border border-white/5 shadow-[0_0_15px_rgba(41,151,255,0)] hover:shadow-[0_0_15px_rgba(41,151,255,0.3)]">Connexion</a>
+                <button id="nav-logout" class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]">Déconnexion</button>
+            </div>
+
+            <!-- Mobile Menu Button -->
+            <div class="flex items-center md:hidden gap-3">
+                <a id="nav-login-mobile" href="/login.html" class="text-white text-[12px] bg-white/10 px-3 py-1 rounded-full border border-white/5">Connexion</a>
+                <button id="mobile-menu-btn" class="text-white p-1 rounded-md hover:bg-white/10 transition-colors">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
             </div>
         </div>
     </nav>
+
+    <!-- Mobile Menu Dropdown -->
+    <div id="mobile-menu" class="hidden fixed top-14 left-0 w-full bg-[#000000]/95 backdrop-blur-xl border-b border-white/10 z-40 transform origin-top transition-all duration-200 opacity-0 -translate-y-2">
+        <div class="p-4 flex flex-col gap-4 text-[14px] font-medium text-subtle">
+            <a href="/index.html" class="hover:text-white px-2">Panthéon</a>
+            <a id="nav-mon-espace-mobile" href="/profile.html" class="hover:text-white px-2 auth-hidden">Mon Espace</a>
+            <button id="nav-logout-mobile" class="hidden text-red-400 hover:text-red-300 text-left px-2">Déconnexion</button>
+        </div>
+    </div>
 
     <!-- Décoration d'arrière-plan (Glow) -->
     <div
@@ -211,7 +270,7 @@
     </div>
 
     <!-- Contenu Principal Centré -->
-    <main class="flex-grow flex items-center justify-center p-6 relative z-10 w-full pt-20">
+    <main class="flex-grow flex items-center justify-center p-4 relative z-10 w-full min-h-0 overflow-hidden">
 
         <div class="w-full max-w-[400px] stagger-item" style="animation-delay: 0.1s;">
 
@@ -339,11 +398,13 @@
     </main>
 
     <!-- Footer Copyright -->
-    <div
-        class="absolute bottom-4 left-0 w-full text-center text-[11px] text-white/30 font-medium tracking-wide z-40 pointer-events-none">
-        © 2026 Glorious Trophée. Tous droits réservés. <span class="mx-1">•</span> <a href="/legal.html"
-            class="hover:text-white transition-colors cursor-pointer pointer-events-auto">Mentions légales</a>
-    </div>
+    <footer
+        class="w-full text-center text-[11px] text-white/50 font-medium tracking-wide z-40 py-4 mt-auto">
+        <div class="px-4">
+            © 2026 Glorious Trophée. Tous droits réservés. <span class="mx-1">•</span> <a href="/legal.html"
+                class="hover:text-white transition-colors cursor-pointer">Mentions légales</a>
+        </div>
+    </footer>
 
     <script>
         lucide.createIcons();
@@ -553,12 +614,41 @@
         }
 
         if (localStorage.getItem('auth_token')) {
-            document.getElementById('nav-mon-espace')?.classList.remove('auth-hidden');
+            document.querySelectorAll('.auth-hidden').forEach(link => link.classList.remove('auth-hidden', 'hidden'));
+            
             document.getElementById('nav-login')?.classList.add('hidden');
             document.getElementById('nav-logout')?.classList.remove('hidden');
+            
+            document.getElementById('nav-login-mobile')?.classList.add('hidden');
+            document.getElementById('nav-logout-mobile')?.classList.remove('hidden');
 
             // Si on est déjà connecté sur la page de login, on redirige vers le profil
             window.location.replace('/profile.html');
+        }
+
+        // Gestion du menu mobile
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileBtn && mobileMenu) {
+            mobileBtn.addEventListener('click', () => {
+                const isHidden = mobileMenu.classList.contains('hidden');
+                if (isHidden) {
+                    mobileMenu.classList.remove('hidden');
+                    setTimeout(() => {
+                        mobileMenu.classList.remove('opacity-0', '-translate-y-2');
+                        mobileMenu.classList.add('opacity-100', 'translate-y-0');
+                    }, 10);
+                    mobileBtn.innerHTML = '<i data-lucide="x" class="w-5 h-5"></i>';
+                } else {
+                    mobileMenu.classList.remove('opacity-100', 'translate-y-0');
+                    mobileMenu.classList.add('opacity-0', '-translate-y-2');
+                    setTimeout(() => {
+                        mobileMenu.classList.add('hidden');
+                    }, 200);
+                    mobileBtn.innerHTML = '<i data-lucide="menu" class="w-5 h-5"></i>';
+                }
+                lucide.createIcons();
+            });
         }
 
         function logout() {

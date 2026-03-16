@@ -6,8 +6,7 @@ use crate::server::auth::{extract_token_from_header, validate_token};
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("/achievements")
-            .route("/stats", web::get().to(get_stats))
-            .route("/recent", web::get().to(get_recent)),
+            .route("/stats", web::get().to(get_stats)),
     );
 }
 
@@ -41,16 +40,14 @@ async fn get_stats(
         Err(resp) => return resp,
     };
 
-    // Stats globales
+    // Stats globales depuis user_game_stats (totaux agrégés)
     let global_stats = sqlx::query_as::<_, (i64, i64)>(
         r#"
         SELECT
-            COUNT(DISTINCT ua.achievement_id) FILTER (WHERE ua.is_unlocked = true) as unlocked,
-            COUNT(DISTINCT a.id) as total
-        FROM achievements a
-        JOIN game_platform_ids gpi ON a.game_platform_id = gpi.id
-        JOIN platform_connections pc ON gpi.platform = pc.platform AND pc.user_id = $1
-        LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = $1
+            COALESCE(SUM(achievements_unlocked), 0)::BIGINT AS unlocked,
+            COALESCE(SUM(achievements_total), 0)::BIGINT AS total
+        FROM user_game_stats
+        WHERE user_id = $1
         "#,
     )
     .bind(user_id)
@@ -58,18 +55,18 @@ async fn get_stats(
     .await
     .unwrap_or((0, 0));
 
-    // Stats par plateforme
+    // Stats par plateforme depuis user_game_stats + game_platform_ids
     let platform_stats = sqlx::query_as::<_, (String, i64, i64, i64)>(
         r#"
         SELECT
             gpi.platform::text,
-            COUNT(DISTINCT a.id) as total_achievements,
-            COUNT(DISTINCT ua.achievement_id) FILTER (WHERE ua.is_unlocked = true) as unlocked_achievements,
-            COUNT(DISTINCT gpi.game_id) as total_games
-        FROM game_platform_ids gpi
-        JOIN achievements a ON gpi.id = a.game_platform_id
-        JOIN platform_connections pc ON gpi.platform = pc.platform AND pc.user_id = $1
-        LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = $1
+            COALESCE(SUM(ugs.achievements_total), 0)::BIGINT AS total_achievements,
+            COALESCE(SUM(ugs.achievements_unlocked), 0)::BIGINT AS unlocked_achievements,
+            COUNT(DISTINCT ugs.game_id)::BIGINT AS total_games
+        FROM user_game_stats ugs
+        JOIN game_platform_ids gpi ON gpi.game_id = ugs.game_id
+        JOIN platform_connections pc ON gpi.platform = pc.platform AND pc.user_id = ugs.user_id
+        WHERE ugs.user_id = $1
         GROUP BY gpi.platform
         "#,
     )
@@ -95,59 +92,4 @@ async fn get_stats(
             })
         }).collect::<Vec<_>>(),
     }))
-}
-
-async fn get_recent(
-    pool: web::Data<PgPool>,
-    req: HttpRequest,
-) -> HttpResponse {
-    let user_id = match get_user_id(&req) {
-        Ok(id) => id,
-        Err(resp) => return resp,
-    };
-
-    let recent = sqlx::query_as::<_, (uuid::Uuid, String, Option<String>, Option<String>, String, String, Option<chrono::DateTime<chrono::Utc>>)>(
-        r#"
-        SELECT
-            a.id, a.name, a.description, a.icon_url,
-            g.title as game_title,
-            gpi.platform::text,
-            ua.unlocked_at
-        FROM user_achievements ua
-        JOIN achievements a ON ua.achievement_id = a.id
-        JOIN game_platform_ids gpi ON a.game_platform_id = gpi.id
-        JOIN games g ON gpi.game_id = g.id
-        WHERE ua.user_id = $1 AND ua.is_unlocked = true
-        ORDER BY ua.unlocked_at DESC NULLS LAST
-        LIMIT 10
-        "#,
-    )
-    .bind(user_id)
-    .fetch_all(pool.get_ref())
-    .await;
-
-    match recent {
-        Ok(rows) => {
-            let result: Vec<serde_json::Value> = rows
-                .into_iter()
-                .map(|(id, name, description, icon_url, game_title, platform, unlocked_at)| {
-                    serde_json::json!({
-                        "id": id,
-                        "name": name,
-                        "description": description,
-                        "icon_url": icon_url,
-                        "game_title": game_title,
-                        "platform": platform,
-                        "unlocked_at": unlocked_at,
-                    })
-                })
-                .collect();
-            HttpResponse::Ok().json(result)
-        }
-        Err(e) => {
-            tracing::error!("Erreur recent achievements: {}", e);
-            HttpResponse::InternalServerError()
-                .json(serde_json::json!({"error": "Erreur interne du serveur"}))
-        }
-    }
 }

@@ -30,6 +30,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "urlencoding",
  "uuid",
  "wasm-bindgen",
  "web-sys",

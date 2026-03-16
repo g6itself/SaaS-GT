@@ -1,28 +1,552 @@
+use serde::Serialize;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::SyncStats;
 
-/// Synchronise les achievements GOG d'un utilisateur.
-///
-/// NOTE: L'API GOG est non officielle et peut changer sans preavis.
-/// Cette integration est marquee comme experimentale.
-pub async fn sync_gog_achievements(
-    _pool: &PgPool,
-    _user_id: Uuid,
-    _gog_user_id: &str,
-    _access_token: &str,
-) -> Result<SyncStats, Box<dyn std::error::Error>> {
-    // TODO: Implementer l'integration GOG
-    // Endpoints connus (reverse-engineered) :
-    // - GET https://embed.gog.com/account/getFilteredProducts?mediaType=1 (liste des jeux)
-    // - GET https://gameplay.gog.com/clients/{product_id}/users/{user_id}/achievements
-    //
-    // L'authentification necessite un token obtenu via le client GOG Galaxy.
-    // Le flow OAuth GOG necessite :
-    // 1. Client ID / Client Secret (obtenu via le GOG Developer Portal)
-    // 2. Authorization code flow
-    // 3. Token refresh
+const GOG_EMBED_BASE: &str = "https://embed.gog.com";
+const GOG_GAMEPLAY_BASE: &str = "https://gameplay.gog.com";
 
-    Err("Integration GOG pas encore implementee. Cette fonctionnalite est experimentale.".into())
+// ─── Credentials ─────────────────────────────────────────────────────────────
+
+/// Récupère le username GOG et le token OAuth depuis platform_connections.
+pub async fn get_user_gog_credentials(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<(String, Option<String>), Box<dyn std::error::Error>> {
+    let row = sqlx::query_as::<_, (String, Option<String>)>(
+        "SELECT platform_user_id, access_token FROM platform_connections WHERE user_id = $1 AND platform = 'gog'::platform_type",
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or("Compte GOG non connecté")?;
+
+    Ok(row)
+}
+
+// ─── Vérification compte ──────────────────────────────────────────────────────
+
+/// Résolution GOG : accepte un username ou un User ID numérique.
+/// - Si c'est un ID numérique → retourne (id, username) tel quel.
+/// - Si c'est un username → scrape gog.com/u/{username} pour extraire l'userId numérique.
+/// Retourne (numeric_user_id, display_username).
+pub async fn verify_gog_user(
+    input: &str,
+) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let input = input.trim();
+    if input.is_empty() {
+        return Err("Veuillez saisir votre nom d'utilisateur GOG.".into());
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+        .timeout(std::time::Duration::from_secs(10))
+        .build()?;
+
+    // Cas 1 : c'est déjà un ID numérique → retourner directement
+    if input.chars().all(|c| c.is_ascii_digit()) && input.len() >= 8 {
+        return Ok((input.to_string(), input.to_string()));
+    }
+
+    // Cas 2 : username → scraper gog.com/u/{username} pour extraire "userId"
+    let url = format!("https://www.gog.com/u/{}", urlencoding::encode(input));
+    let resp = client.get(&url).send().await?;
+
+    if !resp.status().is_success() {
+        return Err(format!(
+            "Compte GOG '{}' introuvable. Vérifiez votre pseudo sur gog.com/u/{}",
+            input, input
+        )
+        .into());
+    }
+
+    let html = resp.text().await?;
+
+    // Extraire l'userId numérique depuis le JSON embarqué dans la page
+    let user_id = extract_gog_user_id_from_html(&html).ok_or_else(|| {
+        format!(
+            "Impossible d'extraire l'identifiant GOG pour '{}'. Votre profil est peut-être privé.",
+            input
+        )
+    })?;
+
+    Ok((user_id, input.to_string()))
+}
+
+/// Extrait le userId numérique GOG depuis le HTML de la page de profil.
+fn extract_gog_user_id_from_html(html: &str) -> Option<String> {
+    // Pattern : "userId":"52344342945716742" (présent dans le JSON embarqué AngularJS)
+    let marker = "\"userId\":\"";
+    let start = html.find(marker)? + marker.len();
+    let end = html[start..].find('"')? + start;
+    let id = &html[start..end];
+    // Valider que c'est bien un ID numérique
+    if id.chars().all(|c| c.is_ascii_digit()) && id.len() >= 8 {
+        Some(id.to_string())
+    } else {
+        None
+    }
+}
+
+// ─── Jeux possédés ───────────────────────────────────────────────────────────
+
+/// Récupère les jeux possédés depuis embed.gog.com (token OAuth requis).
+async fn fetch_gog_owned_games_raw(
+    client: &reqwest::Client,
+    token: &str,
+) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+    let mut all_products: Vec<serde_json::Value> = Vec::new();
+    let mut page = 1u32;
+
+    loop {
+        let url = format!(
+            "{}/account/getFilteredProducts?mediaType=1&page={}",
+            GOG_EMBED_BASE, page
+        );
+        let resp: serde_json::Value = client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let products = match resp["products"].as_array() {
+            Some(p) if !p.is_empty() => p.clone(),
+            _ => break,
+        };
+
+        let total_pages = resp["totalPages"].as_u64().unwrap_or(1) as u32;
+        all_products.extend(products);
+
+        if page >= total_pages { break; }
+        page += 1;
+    }
+
+    Ok(all_products)
+}
+
+// ─── Achievements par jeu ─────────────────────────────────────────────────────
+
+/// Récupère le nombre d'achievements débloqués et total pour un jeu GOG.
+/// Retourne (unlocked, total) ou None si le jeu n'a pas d'achievements.
+async fn fetch_gog_achievements(
+    client: &reqwest::Client,
+    user_id_numeric: &str,
+    game_id: &str,
+) -> Option<(u32, u32)> {
+    let url = format!(
+        "{}/clients/{}/users/{}/achievements",
+        GOG_GAMEPLAY_BASE, game_id, user_id_numeric
+    );
+
+    let resp: serde_json::Value = match client.get(&url).send().await {
+        Ok(r) => r.json().await.unwrap_or_default(),
+        Err(_) => return None,
+    };
+
+    let items = resp["items"].as_array()?;
+    if items.is_empty() { return None; }
+
+    let total = items.len() as u32;
+    let unlocked = items
+        .iter()
+        .filter(|a| {
+            // date_unlocked est une string non vide si débloqué
+            a["date_unlocked"]
+                .as_str()
+                .map(|s| !s.is_empty() && s != "0000-00-00T00:00:00.000Z")
+                .unwrap_or(false)
+        })
+        .count() as u32;
+
+    Some((unlocked, total))
+}
+
+// ─── Sync principal ───────────────────────────────────────────────────────────
+
+/// Synchronise les achievements GOG d'un utilisateur.
+pub async fn sync_gog_achievements(
+    pool: &PgPool,
+    user_id: Uuid,
+    gog_username: &str,
+    access_token: &str,
+) -> Result<SyncStats, Box<dyn std::error::Error>> {
+    if access_token.is_empty() {
+        return Err("Token OAuth GOG requis pour synchroniser les jeux. Reconnectez votre compte GOG avec un token valide.".into());
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0")
+        .build()?;
+
+    // 1. Le gog_username contient le userId numérique GOG
+    let user_id_numeric = gog_username.trim().to_string();
+
+    // 2. Récupérer les jeux possédés
+    let products = fetch_gog_owned_games_raw(&client, access_token).await?;
+    tracing::info!("GOG sync: {} jeux trouvés pour {}", products.len(), gog_username);
+
+    let mut games_synced: u32 = 0;
+    let mut achievements_synced: u32 = 0;
+
+    for product in &products {
+        let game_id_raw = match product["id"].as_u64() {
+            Some(id) => id.to_string(),
+            None => continue,
+        };
+        let title = product["title"]
+            .as_str()
+            .unwrap_or("Jeu inconnu")
+            .to_string();
+
+        // 3. Vérifier s'il y a des achievements
+        let (unlocked, total) = match fetch_gog_achievements(&client, &user_id_numeric, &game_id_raw).await {
+            Some(stats) if stats.1 > 0 => stats,
+            _ => continue, // Pas d'achievements pour ce jeu
+        };
+
+        let pct = if total > 0 { unlocked as f64 / total as f64 * 100.0 } else { 0.0 };
+        let normalized_title = title.to_lowercase();
+
+        // 4. Upsert dans games
+        sqlx::query(
+            r#"
+            INSERT INTO games (title, normalized_title)
+            VALUES ($1, $2)
+            ON CONFLICT (normalized_title) DO UPDATE SET title = EXCLUDED.title
+            "#,
+        )
+        .bind(&title)
+        .bind(&normalized_title)
+        .execute(pool)
+        .await
+        .map_err(|e| format!("Erreur upsert game '{}': {}", title, e))?;
+
+        let game_db_id: uuid::Uuid = sqlx::query_scalar(
+            "SELECT id FROM games WHERE normalized_title = $1",
+        )
+        .bind(&normalized_title)
+        .fetch_one(pool)
+        .await?;
+
+        // 5. Upsert dans game_platform_ids
+        sqlx::query(
+            r#"
+            INSERT INTO game_platform_ids (game_id, platform, platform_game_id, platform_name, total_achievements)
+            VALUES ($1, 'gog'::platform_type, $2, $3, $4)
+            ON CONFLICT (platform, platform_game_id) DO UPDATE
+            SET platform_name = EXCLUDED.platform_name, total_achievements = EXCLUDED.total_achievements
+            "#,
+        )
+        .bind(game_db_id)
+        .bind(&game_id_raw)
+        .bind(&title)
+        .bind(total as i32)
+        .execute(pool)
+        .await
+        .map_err(|e| format!("Erreur upsert game_platform_ids '{}': {}", title, e))?;
+
+        // 6. Upsert dans user_game_stats
+        sqlx::query(
+            r#"
+            INSERT INTO user_game_stats (user_id, game_id, achievements_unlocked, achievements_total, completion_pct)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, game_id) DO UPDATE
+            SET achievements_unlocked = EXCLUDED.achievements_unlocked,
+                achievements_total    = EXCLUDED.achievements_total,
+                completion_pct        = EXCLUDED.completion_pct,
+                updated_at            = NOW()
+            "#,
+        )
+        .bind(user_id)
+        .bind(game_db_id)
+        .bind(unlocked as i32)
+        .bind(total as i32)
+        .bind(pct)
+        .execute(pool)
+        .await
+        .map_err(|e| format!("Erreur upsert user_game_stats '{}': {}", title, e))?;
+
+        games_synced += 1;
+        achievements_synced += unlocked;
+    }
+
+    // 7. Recalculer les totaux utilisateur
+    let final_stats = sqlx::query_as::<_, (i64, i64)>(
+        r#"
+        UPDATE users
+        SET
+            total_achievements_count = (
+                SELECT COALESCE(SUM(achievements_unlocked), 0)
+                FROM user_game_stats WHERE user_id = $1
+            ),
+            games_completed = (
+                SELECT COUNT(*) FROM user_game_stats
+                WHERE user_id = $1 AND achievements_total > 0 AND achievements_unlocked >= achievements_total
+            ),
+            total_possible_achievements = (
+                SELECT COALESCE(SUM(achievements_total), 0)
+                FROM user_game_stats WHERE user_id = $1
+            ),
+            total_points = (
+                SELECT COALESCE(SUM(achievements_unlocked), 0) * 10
+                     + COUNT(*) FILTER (WHERE achievements_total > 0 AND achievements_unlocked >= achievements_total) * 50
+                FROM user_game_stats WHERE user_id = $1
+            )
+        WHERE id = $1
+        RETURNING total_achievements_count, games_completed::BIGINT
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or((0, 0));
+
+    // 8. Mettre à jour le snapshot de rang si >24h
+    sqlx::query(
+        r#"
+        UPDATE users u SET
+            rank_snapshot    = ranked.rank_pts,
+            rank_snapshot_at = NOW()
+        FROM (
+            SELECT id, RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts
+            FROM users WHERE is_active = true
+        ) ranked
+        WHERE u.id = $1
+          AND ranked.id = $1
+          AND (u.rank_snapshot_at IS NULL OR u.rank_snapshot_at < NOW() - INTERVAL '24 hours')
+        "#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await
+    .ok();
+
+    tracing::info!(
+        "GOG sync terminé pour {} : {} jeux, {} achievements",
+        gog_username, games_synced, achievements_synced
+    );
+
+    Ok(SyncStats {
+        games_synced,
+        achievements_synced,
+        total_achievements: final_stats.0 as u32,
+        games_completed: final_stats.1 as u32,
+    })
+}
+
+// ─── Lecture des données GOG depuis la DB ─────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct GogGame {
+    pub platform_game_id: String,
+    pub title: String,
+    pub achievements_unlocked: i32,
+    pub achievements_total: i32,
+    pub completion_pct: f64,
+}
+
+#[derive(Serialize)]
+pub struct GogCompletedGame {
+    pub platform_game_id: String,
+    pub title: String,
+    pub achievements_total: i32,
+}
+
+#[derive(Serialize)]
+pub struct GogRecentAchievement {
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub image_url: String,
+    pub unlocked_at: String,
+    pub game_name: String,
+    pub platform_game_id: String,
+    pub rarity: String,
+    pub global_percentage: f64,
+}
+
+/// Récupère les jeux GOG avec stats de complétion depuis la DB.
+pub async fn fetch_gog_games_from_db(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<Vec<GogGame>, Box<dyn std::error::Error>> {
+    let rows = sqlx::query_as::<_, (String, String, i32, i32, f64)>(
+        r#"
+        SELECT gpi.platform_game_id, gpi.platform_name, ugs.achievements_unlocked,
+               ugs.achievements_total, ugs.completion_pct
+        FROM user_game_stats ugs
+        JOIN game_platform_ids gpi ON gpi.game_id = ugs.game_id
+            AND gpi.platform = 'gog'::platform_type
+        WHERE ugs.user_id = $1
+        ORDER BY ugs.completion_pct DESC, ugs.achievements_unlocked DESC
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|(platform_game_id, title, achievements_unlocked, achievements_total, completion_pct)| GogGame {
+            platform_game_id,
+            title,
+            achievements_unlocked,
+            achievements_total,
+            completion_pct,
+        })
+        .collect())
+}
+
+/// Récupère les jeux GOG complétés à 100% depuis la DB.
+pub async fn fetch_gog_completed_from_db(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<Vec<GogCompletedGame>, Box<dyn std::error::Error>> {
+    let rows = sqlx::query_as::<_, (String, String, i32)>(
+        r#"
+        SELECT gpi.platform_game_id, gpi.platform_name, ugs.achievements_total
+        FROM user_game_stats ugs
+        JOIN game_platform_ids gpi ON gpi.game_id = ugs.game_id
+            AND gpi.platform = 'gog'::platform_type
+        WHERE ugs.user_id = $1
+          AND ugs.achievements_total > 0
+          AND ugs.achievements_unlocked >= ugs.achievements_total
+        ORDER BY ugs.updated_at DESC
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|(platform_game_id, title, achievements_total)| GogCompletedGame {
+            platform_game_id,
+            title,
+            achievements_total,
+        })
+        .collect())
+}
+
+/// Récupère les achievements GOG récents via l'API GOG (token Bearer requis).
+/// Parcourt les jeux récents en DB et appelle gameplay.gog.com pour chaque jeu.
+/// Retourne une liste vide si aucun token n'est fourni ou si l'API est inaccessible.
+pub async fn fetch_gog_recent_achievements(
+    pool: &PgPool,
+    user_id: Uuid,
+    gog_user_id: &str,
+    access_token: Option<&str>,
+) -> Result<Vec<GogRecentAchievement>, Box<dyn std::error::Error>> {
+    let token = match access_token {
+        Some(t) if !t.is_empty() => t,
+        _ => return Ok(vec![]), // Sans token, l'API GOG refuse l'accès
+    };
+
+    // Récupérer les jeux GOG récemment mis à jour (qui ont des achievements)
+    let recent_game_ids = sqlx::query_as::<_, (String, String)>(
+        r#"
+        SELECT gpi.platform_game_id, gpi.platform_name
+        FROM user_game_stats ugs
+        JOIN game_platform_ids gpi ON gpi.game_id = ugs.game_id
+            AND gpi.platform = 'gog'::platform_type
+        WHERE ugs.user_id = $1
+          AND ugs.achievements_unlocked > 0
+        ORDER BY ugs.updated_at DESC
+        LIMIT 10
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
+
+    if recent_game_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent("GOG Galaxy/2.0")
+        .timeout(std::time::Duration::from_secs(8))
+        .build()?;
+
+    let mut all_recent: Vec<GogRecentAchievement> = Vec::new();
+
+    for (game_id, game_name) in &recent_game_ids {
+        let url = format!(
+            "{}/clients/{}/users/{}/achievements",
+            GOG_GAMEPLAY_BASE, game_id, gog_user_id
+        );
+
+        let resp: serde_json::Value = match client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() => r.json().await.unwrap_or_default(),
+            Ok(r) if r.status().as_u16() == 401 => {
+                // Token expiré — inutile de continuer
+                tracing::warn!("GOG token expiré pour user_id={}", user_id);
+                break;
+            }
+            _ => continue,
+        };
+
+        let items = match resp["items"].as_array() {
+            Some(a) if !a.is_empty() => a,
+            _ => continue,
+        };
+
+        let mut unlocked: Vec<&serde_json::Value> = items
+            .iter()
+            .filter(|a| {
+                a["date_unlocked"]
+                    .as_str()
+                    .map(|s| !s.is_empty() && s != "0000-00-00T00:00:00.000Z")
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        // Trier par date décroissante
+        unlocked.sort_by(|a, b| {
+            let da = a["date_unlocked"].as_str().unwrap_or("");
+            let db = b["date_unlocked"].as_str().unwrap_or("");
+            db.cmp(da)
+        });
+
+        for a in unlocked.into_iter().take(3) {
+            let global_pct = a["rarity"].as_f64().unwrap_or(0.0);
+            let rarity = match global_pct as u32 {
+                50..=100 => "common",
+                20..=49 => "rare",
+                5..=19 => "epic",
+                _ => "legendary",
+            };
+            all_recent.push(GogRecentAchievement {
+                name: a["achievement_id"].as_str().unwrap_or("").to_string(),
+                display_name: a["name"].as_str().unwrap_or("").to_string(),
+                description: a["description"].as_str().unwrap_or("").to_string(),
+                image_url: a["image_url_unlocked"].as_str().unwrap_or("").to_string(),
+                unlocked_at: a["date_unlocked"].as_str().unwrap_or("").to_string(),
+                game_name: game_name.clone(),
+                platform_game_id: game_id.clone(),
+                rarity: rarity.to_string(),
+                global_percentage: global_pct,
+            });
+        }
+
+        if all_recent.len() >= 15 {
+            break;
+        }
+    }
+
+    // Trier par date et retourner les 5 plus récents
+    all_recent.sort_by(|a, b| b.unlocked_at.cmp(&a.unlocked_at));
+    all_recent.truncate(5);
+
+    Ok(all_recent)
 }

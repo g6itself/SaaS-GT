@@ -312,8 +312,8 @@ async fn me(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
                 avatar_url,
             })
         }
-        Ok(None) => HttpResponse::NotFound().json(serde_json::json!({
-            "error": "Utilisateur non trouve"
+        Ok(None) => HttpResponse::Unauthorized().json(serde_json::json!({
+            "error": "Token révoqué ou compte supprimé"
         })),
         Err(e) => {
             tracing::error!("Erreur me: {}", e);

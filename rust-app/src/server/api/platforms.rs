@@ -1,10 +1,42 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use sqlx::PgPool;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use crate::models::platform_connection::{
     ConnectPlatformRequest, PlatformConnectionPublic, UpdateApikeyRequest,
 };
 use crate::server::auth::{extract_token_from_header, validate_token};
+
+// ─── Cache Steam en mémoire ───────────────────────────────────────────────────
+
+const STEAM_CACHE_TTL: Duration = Duration::from_secs(300); // 5 minutes
+
+struct SteamCacheEntry {
+    data: serde_json::Value,
+    fetched_at: Instant,
+}
+
+impl SteamCacheEntry {
+    fn is_fresh(&self) -> bool {
+        self.fetched_at.elapsed() < STEAM_CACHE_TTL
+    }
+}
+
+pub struct SteamCache {
+    recent_achievements: HashMap<String, SteamCacheEntry>,
+    completed_games: HashMap<String, SteamCacheEntry>,
+}
+
+impl SteamCache {
+    pub fn new() -> Self {
+        Self {
+            recent_achievements: HashMap::new(),
+            completed_games: HashMap::new(),
+        }
+    }
+}
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -13,6 +45,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             // Routes Steam OpenID (avant /{platform} pour éviter tout conflit)
             .route("/steam/auth", web::get().to(steam_openid_auth))
             .route("/steam/callback", web::get().to(steam_openid_callback))
+            // Données Steam en temps réel
+            .route("/steam/games", web::get().to(steam_games))
+            .route("/steam/games/completed", web::get().to(steam_completed_games))
+            .route("/steam/achievements/recent", web::get().to(steam_recent_achievements))
+            // Données GOG depuis la DB
+            .route("/gog/verify", web::get().to(gog_verify_user))
+            .route("/gog/games", web::get().to(gog_games))
+            .route("/gog/games/completed", web::get().to(gog_completed_games))
+            .route("/gog/achievements/recent", web::get().to(gog_recent_achievements))
             .route("/{platform}", web::post().to(connect_platform))
             .route("/{platform}", web::delete().to(disconnect_platform))
             .route("/{platform}/sync", web::post().to(sync_platform))
@@ -141,7 +182,16 @@ async fn list_connections(
     };
 
     let connections = sqlx::query_as::<_, (uuid::Uuid, String, Option<String>, Option<chrono::DateTime<chrono::Utc>>, bool)>(
-        "SELECT id, platform::text, platform_username, last_synced_at, (access_token IS NOT NULL) as has_api_key FROM platform_connections WHERE user_id = $1",
+        r#"
+        SELECT pc.id, pc.platform::text, pc.platform_username, pc.last_synced_at,
+               CASE
+                 WHEN pc.platform = 'steam'::platform_type
+                   THEN (SELECT steam_api_key_enc IS NOT NULL FROM users WHERE id = $1)
+                 ELSE (pc.access_token IS NOT NULL)
+               END AS has_api_key
+        FROM platform_connections pc
+        WHERE pc.user_id = $1
+        "#,
     )
     .bind(user_id)
     .fetch_all(pool.get_ref())
@@ -264,6 +314,7 @@ async fn disconnect_platform(
 
 async fn sync_platform(
     pool: web::Data<PgPool>,
+    cache: web::Data<Mutex<SteamCache>>,
     req: HttpRequest,
     path: web::Path<String>,
 ) -> HttpResponse {
@@ -309,6 +360,14 @@ async fn sync_platform(
                         .as_deref()
                         .or(access_token.as_deref());
 
+                    let api_key_source = if decrypted_key.is_some() {
+                        "personal"
+                    } else if access_token.is_some() {
+                        "connection"
+                    } else {
+                        "server"
+                    };
+
                     match crate::server::platforms::steam::sync_steam_achievements(
                         pool.get_ref(),
                         user_id,
@@ -326,12 +385,19 @@ async fn sync_platform(
                             .execute(pool.get_ref())
                             .await;
 
+                            // Invalider le cache Steam pour que le prochain chargement soit frais
+                            if let Ok(mut c) = cache.lock() {
+                                c.recent_achievements.remove(&platform_user_id);
+                                c.completed_games.remove(&platform_user_id);
+                            }
+
                             HttpResponse::Ok().json(serde_json::json!({
                                 "message": "Synchronisation Steam terminee",
                                 "games_synced": stats.games_synced,
                                 "achievements_synced": stats.achievements_synced,
                                 "total_achievements": stats.total_achievements,
                                 "games_completed": stats.games_completed,
+                                "api_key_source": api_key_source,
                             }))
                         }
                         Err(e) => {
@@ -341,8 +407,38 @@ async fn sync_platform(
                         }
                     }
                 }
-                "gog" => HttpResponse::NotImplemented()
-                    .json(serde_json::json!({"error": "Synchronisation GOG pas encore implementee"})),
+                "gog" => {
+                    match crate::server::platforms::gog::sync_gog_achievements(
+                        pool.get_ref(),
+                        user_id,
+                        &platform_user_id,
+                        access_token.as_deref().unwrap_or(""),
+                    )
+                    .await
+                    {
+                        Ok(stats) => {
+                            let _ = sqlx::query(
+                                "UPDATE platform_connections SET last_synced_at = NOW() WHERE user_id = $1 AND platform = 'gog'::platform_type",
+                            )
+                            .bind(user_id)
+                            .execute(pool.get_ref())
+                            .await;
+
+                            HttpResponse::Ok().json(serde_json::json!({
+                                "message": "Synchronisation GOG terminée",
+                                "games_synced": stats.games_synced,
+                                "achievements_synced": stats.achievements_synced,
+                                "total_achievements": stats.total_achievements,
+                                "games_completed": stats.games_completed,
+                            }))
+                        }
+                        Err(e) => {
+                            tracing::error!("Erreur sync GOG: {}", e);
+                            HttpResponse::InternalServerError()
+                                .json(serde_json::json!({"error": format!("Erreur sync GOG: {}", e)}))
+                        }
+                    }
+                }
                 "epic" => HttpResponse::NotImplemented()
                     .json(serde_json::json!({"error": "Synchronisation Epic pas encore implementee"})),
                 _ => HttpResponse::BadRequest()
@@ -355,6 +451,287 @@ async fn sync_platform(
             tracing::error!("Erreur sync: {}", e);
             HttpResponse::InternalServerError()
                 .json(serde_json::json!({"error": "Erreur interne du serveur"}))
+        }
+    }
+}
+
+/// GET /api/platforms/gog/verify?username={input} — résoudre un username ou ID GOG en ID numérique
+/// Accepte un nom d'utilisateur GOG (ex: "g6itself") ou un ID numérique déjà connu.
+/// Retourne { valid, user_id, username } — utilisé par le frontend avant de connecter le compte.
+async fn gog_verify_user(query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
+    let input = match query.get("username") {
+        Some(u) if !u.is_empty() => u.clone(),
+        _ => return HttpResponse::BadRequest().json(serde_json::json!({ "error": "Paramètre username manquant" })),
+    };
+
+    match crate::server::platforms::gog::verify_gog_user(&input).await {
+        Ok((user_id, username)) => HttpResponse::Ok().json(serde_json::json!({
+            "valid": true,
+            "user_id": user_id,
+            "username": username,
+        })),
+        Err(e) => HttpResponse::NotFound().json(serde_json::json!({
+            "valid": false,
+            "error": format!("{}", e),
+        })),
+    }
+}
+
+/// GET /api/platforms/steam/games — liste des jeux Steam avec données de complétion
+async fn steam_games(
+    pool: web::Data<PgPool>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let user_id = match get_user_id(&req) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let (steam_id, api_key) =
+        match crate::server::platforms::steam::get_user_steam_credentials(pool.get_ref(), user_id)
+            .await
+        {
+            Ok(creds) => creds,
+            Err(e) => {
+                return HttpResponse::BadRequest()
+                    .json(serde_json::json!({ "error": format!("{}", e) }))
+            }
+        };
+
+    let mut games =
+        match crate::server::platforms::steam::fetch_owned_games(&steam_id, &api_key).await {
+            Ok(g) => g,
+            Err(e) => {
+                tracing::error!("Erreur fetch_owned_games: {}", e);
+                return HttpResponse::InternalServerError()
+                    .json(serde_json::json!({ "error": "Erreur lors de la récupération des jeux Steam" }));
+            }
+        };
+
+    // Récupérer les données de complétion depuis user_game_stats
+    let stats_rows = sqlx::query_as::<_, (String, i32, i32, f64)>(
+        r#"
+        SELECT gpi.platform_game_id,
+               ugs.achievements_unlocked,
+               ugs.achievements_total,
+               ugs.completion_pct
+        FROM user_game_stats ugs
+        JOIN game_platform_ids gpi ON gpi.game_id = ugs.game_id
+            AND gpi.platform = 'steam'::platform_type
+        WHERE ugs.user_id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool.get_ref())
+    .await
+    .unwrap_or_default();
+
+    // Index appid → (unlocked, total, pct)
+    let stats_map: std::collections::HashMap<u64, (i32, i32, f64)> = stats_rows
+        .into_iter()
+        .filter_map(|(appid_str, unlocked, total, pct)| {
+            appid_str.parse::<u64>().ok().map(|id| (id, (unlocked, total, pct)))
+        })
+        .collect();
+
+    // Construire la réponse JSON enrichie
+    let result: Vec<serde_json::Value> = games
+        .iter_mut()
+        .map(|g| {
+            let (unlocked, total, pct) = stats_map.get(&g.appid).copied().unwrap_or((0, 0, 0.0));
+            serde_json::json!({
+                "appid": g.appid,
+                "name": g.name,
+                "playtime_minutes": g.playtime_minutes,
+                "img_icon_url": g.img_icon_url,
+                "last_played_at": g.last_played_at,
+                "achievements_unlocked": unlocked,
+                "achievements_total": total,
+                "completion_pct": pct,
+            })
+        })
+        .collect();
+
+    HttpResponse::Ok().json(result)
+}
+
+/// GET /api/platforms/steam/games/completed — 5 derniers jeux complétés à 100%
+async fn steam_completed_games(
+    pool: web::Data<PgPool>,
+    cache: web::Data<Mutex<SteamCache>>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let user_id = match get_user_id(&req) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let (steam_id, api_key) =
+        match crate::server::platforms::steam::get_user_steam_credentials(pool.get_ref(), user_id)
+            .await
+        {
+            Ok(creds) => creds,
+            Err(e) => {
+                return HttpResponse::BadRequest()
+                    .json(serde_json::json!({ "error": format!("{}", e) }))
+            }
+        };
+
+    // Vérifier le cache
+    if let Ok(c) = cache.lock() {
+        if let Some(entry) = c.completed_games.get(&steam_id) {
+            if entry.is_fresh() {
+                return HttpResponse::Ok().json(&entry.data);
+            }
+        }
+    }
+
+    match crate::server::platforms::steam::fetch_completed_games(&steam_id, &api_key).await {
+        Ok(games) => {
+            let json_val = serde_json::to_value(&games).unwrap_or_default();
+            // Ne cacher que si on a trouvé au moins un jeu (évite de figer un tableau vide)
+            if !games.is_empty() {
+                if let Ok(mut c) = cache.lock() {
+                    c.completed_games.insert(steam_id, SteamCacheEntry {
+                        data: json_val.clone(),
+                        fetched_at: Instant::now(),
+                    });
+                }
+            }
+            HttpResponse::Ok().json(json_val)
+        }
+        Err(e) => {
+            tracing::error!("Erreur fetch_completed_games: {}", e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur lors de la récupération des jeux complétés" }))
+        }
+    }
+}
+
+/// GET /api/platforms/steam/achievements/recent — 5 derniers achievements débloqués
+async fn steam_recent_achievements(
+    pool: web::Data<PgPool>,
+    cache: web::Data<Mutex<SteamCache>>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let user_id = match get_user_id(&req) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let (steam_id, api_key) =
+        match crate::server::platforms::steam::get_user_steam_credentials(pool.get_ref(), user_id)
+            .await
+        {
+            Ok(creds) => creds,
+            Err(e) => {
+                return HttpResponse::BadRequest()
+                    .json(serde_json::json!({ "error": format!("{}", e) }))
+            }
+        };
+
+    // Vérifier le cache
+    if let Ok(c) = cache.lock() {
+        if let Some(entry) = c.recent_achievements.get(&steam_id) {
+            if entry.is_fresh() {
+                return HttpResponse::Ok().json(&entry.data);
+            }
+        }
+    }
+
+    match crate::server::platforms::steam::fetch_recent_achievements(&steam_id, &api_key).await {
+        Ok(achievements) => {
+            let json_val = serde_json::to_value(&achievements).unwrap_or_default();
+            if !achievements.is_empty() {
+                if let Ok(mut c) = cache.lock() {
+                    c.recent_achievements.insert(steam_id, SteamCacheEntry {
+                        data: json_val.clone(),
+                        fetched_at: Instant::now(),
+                    });
+                }
+            }
+            HttpResponse::Ok().json(json_val)
+        }
+        Err(e) => {
+            tracing::error!("Erreur fetch_recent_achievements: {}", e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur lors de la récupération des achievements récents" }))
+        }
+    }
+}
+
+/// GET /api/platforms/gog/games — liste des jeux GOG avec données de complétion (depuis DB)
+async fn gog_games(
+    pool: web::Data<PgPool>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let user_id = match get_user_id(&req) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    match crate::server::platforms::gog::fetch_gog_games_from_db(pool.get_ref(), user_id).await {
+        Ok(games) => HttpResponse::Ok().json(games),
+        Err(e) => {
+            tracing::error!("Erreur fetch_gog_games_from_db: {}", e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur lors de la récupération des jeux GOG" }))
+        }
+    }
+}
+
+/// GET /api/platforms/gog/games/completed — jeux GOG complétés à 100% (depuis DB)
+async fn gog_completed_games(
+    pool: web::Data<PgPool>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let user_id = match get_user_id(&req) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    match crate::server::platforms::gog::fetch_gog_completed_from_db(pool.get_ref(), user_id).await {
+        Ok(games) => HttpResponse::Ok().json(games),
+        Err(e) => {
+            tracing::error!("Erreur fetch_gog_completed_from_db: {}", e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur lors de la récupération des jeux GOG complétés" }))
+        }
+    }
+}
+
+/// GET /api/platforms/gog/achievements/recent — achievements GOG récents (API GOG + token Bearer)
+async fn gog_recent_achievements(
+    pool: web::Data<PgPool>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let user_id = match get_user_id(&req) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let (gog_user_id, access_token) =
+        match crate::server::platforms::gog::get_user_gog_credentials(pool.get_ref(), user_id).await {
+            Ok(creds) => creds,
+            Err(e) => {
+                return HttpResponse::BadRequest()
+                    .json(serde_json::json!({ "error": format!("{}", e) }))
+            }
+        };
+
+    match crate::server::platforms::gog::fetch_gog_recent_achievements(
+        pool.get_ref(),
+        user_id,
+        &gog_user_id,
+        access_token.as_deref(),
+    )
+    .await
+    {
+        Ok(achievements) => HttpResponse::Ok().json(achievements),
+        Err(e) => {
+            tracing::error!("Erreur fetch_gog_recent_achievements: {}", e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur lors de la récupération des achievements GOG récents" }))
         }
     }
 }

@@ -8,7 +8,6 @@ pub struct Game {
     pub id: Uuid,
     pub title: String,
     pub normalized_title: String,
-    pub cover_image_url: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -28,7 +27,6 @@ pub struct GamePlatformId {
 pub struct GameWithStats {
     pub id: Uuid,
     pub title: String,
-    pub cover_image_url: Option<String>,
     pub platforms: Vec<String>,
     pub total_achievements: i32,
     pub unlocked_achievements: i32,

@@ -3,21 +3,31 @@
 
 <head>
   <style>
+    :root {
+      --brand: #2997ff;
+      --surface: #111111;
+      --surface-hover: #161616;
+      --subtle: #86868b;
+      --border: rgba(255, 255, 255, 0.06);
+    }
+
     html,
     body {
       background: #000 !important;
+      overflow-x: hidden;
     }
   </style>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Glorious Trophée — Panthéon</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap"
-    rel="stylesheet">
+    rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet"></noscript>
   <link rel="stylesheet" href="/transitions.css">
   <script src="/transitions.js" defer></script>
   <script>
@@ -76,30 +86,186 @@
 
     @media (max-width: 1024px) {
       .leaderboard-row {
-        grid-template-columns: 60px minmax(0, 1fr) 100px 120px 120px;
+        grid-template-columns: 60px minmax(0, 1fr) 100px 100px;
+        padding: 14px 18px;
+        gap: 12px;
       }
 
       .hide-mobile {
         display: none;
       }
+
+      .rank-1,
+      .rank-2,
+      .rank-3 {
+        font-size: 1.25rem;
+      }
     }
 
     @media (max-width: 640px) {
       .leaderboard-row {
-        grid-template-columns: 50px minmax(0, 1fr) 100px 120px;
+        grid-template-columns: 44px minmax(0, 1fr) 80px;
+        padding: 12px 14px;
+        gap: 8px;
       }
 
       .hide-sm {
         display: none;
+      }
+
+      .rank-1,
+      .rank-2,
+      .rank-3 {
+        font-size: 1.1rem;
       }
     }
 
     .leaderboard-row:hover {
       background-color: var(--surface-hover);
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 15px var(--hover-glow);
+      border-color: var(--hover-glow);
       z-index: 10;
+    }
+
+    /* ── Ambient Background ── */
+    #ambient-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .mesh-gradient {
+      position: absolute;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(at 0% 0%, hsla(210, 100%, 58%, 0.15) 0, transparent 50%),
+        radial-gradient(at 50% 0%, hsla(260, 100%, 58%, 0.1) 0, transparent 50%),
+        radial-gradient(at 100% 0%, hsla(30, 100%, 58%, 0.1) 0, transparent 50%);
+      filter: blur(80px);
+      animation: mesh-move 20s ease infinite alternate;
+    }
+
+    @keyframes mesh-move {
+      0% {
+        transform: scale(1) translate(0, 0);
+      }
+
+      100% {
+        transform: scale(1.2) translate(-5%, -5%);
+      }
+    }
+
+    /* ── Skeleton Shimmer ── */
+    @keyframes shimmer {
+      0% {
+        background-position: -468px 0;
+      }
+
+      100% {
+        background-position: 468px 0;
+      }
+    }
+
+    .skeleton {
+      background: #111;
+      background: linear-gradient(to right, #111 8%, #161616 18%, #111 33%);
+      background-size: 800px 104px;
+      animation: shimmer 1.5s linear infinite forwards;
+      border-radius: 4px;
+    }
+
+    /* ── Live Activity Marquee ── */
+    #live-feed {
+      background: rgba(41, 151, 255, 0.05);
+      border-bottom: 1px solid rgba(41, 151, 255, 0.1);
+      height: 32px;
+      overflow: hidden;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      position: fixed;
+      top: 56px;
+      width: 100%;
+      z-index: 45;
+    }
+
+    .marquee-content {
+      display: inline-flex;
+      animation: marquee 40s linear infinite;
+      gap: 40px;
+    }
+
+    @keyframes marquee {
+      0% {
+        transform: translateX(0);
+      }
+
+      100% {
+        transform: translateX(-50%);
+      }
+    }
+
+    /* ── Side Widgets ── */
+    .widget-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .widget-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateY(-4px);
+    }
+
+    /* ── Progress Rings ── */
+    .progress-ring {
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring__circle {
+      transition: stroke-dashoffset 0.5s ease-out;
+      transform-origin: 50% 50%;
+    }
+
+    /* ── Sparkling Badges ── */
+    @keyframes sparkle {
+
+      0%,
+      100% {
+        opacity: 0.3;
+        transform: scale(1);
+        filter: brightness(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.1);
+        filter: brightness(1.5) drop-shadow(0 0 5px currentColor);
+      }
+    }
+
+    .sparkle-slow {
+      animation: sparkle 3s ease-in-out infinite;
+    }
+
+    /* ── Particles ── */
+    #particles-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
     }
 
     .leaderboard-row:active {
@@ -151,6 +317,23 @@
       font-size: 1.5rem;
     }
 
+    /* Row Prominence for Top 3 */
+    .row-1 {
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%);
+      border-left: 3px solid #f59e0b !important;
+    }
+
+    .row-2 {
+      background: linear-gradient(90deg, rgba(226, 232, 240, 0.08) 0%, transparent 100%);
+      border-left: 3px solid #e2e8f0 !important;
+    }
+
+    .row-3 {
+      background: linear-gradient(90deg, rgba(180, 83, 9, 0.08) 0%, transparent 100%);
+      border-left: 3px solid #b45309 !important;
+    }
+
+
     /* Bronze */
     .rank-default {
       color: var(--subtle);
@@ -186,22 +369,69 @@
   </style>
 </head>
 
-<body class="selection:bg-brand/30 selection:text-white h-[100dvh] overflow-hidden flex flex-col">
+<body class="selection:bg-brand/30 selection:text-white xl:h-[100dvh] xl:overflow-hidden flex flex-col">
+
+  <!-- Ambient Background -->
+  <div id="ambient-canvas">
+    <div class="mesh-gradient"></div>
+    <div id="particles-container"></div>
+  </div>
+
+  <!-- Live Feed Marquee -->
+  <div id="live-feed">
+    <div class="marquee-content">
+      <span class="flex items-center gap-2 text-[11px] font-medium text-brand">
+        <i data-lucide="heart" class="w-3 h-3 text-red-500 animate-pulse"></i>
+        MAINTENANCE : <strong>Objectif de saison</strong> atteindre 300€ pour le service (142€ récoltés)
+      </span>
+      <span class="flex items-center gap-2 text-[11px] font-medium text-brand/80">
+        <i data-lucide="zap" class="w-3 h-3"></i>
+        ACTUALITÉ : <strong>AlexHunter</strong> vient de débloquer le trophée "Légende de Fer" sur <em>Elden Ring</em>
+      </span>
+      <span class="flex items-center gap-2 text-[11px] font-medium text-white/50">
+        <i data-lucide="award" class="w-3 h-3"></i>
+        <strong>Saria</strong> a atteint la ligue <span class="text-amber-500">Zenith</span> !
+      </span>
+      <span class="flex items-center gap-2 text-[11px] font-medium text-white/50">
+        <i data-lucide="gamepad-2" class="w-3 h-3"></i>
+        Nouveau Jeu GT : <em>Hollow Knight</em> rejoint l'arène.
+      </span>
+      <!-- Duplicate for seamless loop -->
+      <span class="flex items-center gap-2 text-[11px] font-medium text-brand">
+        <i data-lucide="heart" class="w-3 h-3 text-red-500 animate-pulse"></i>
+        MAINTENANCE : <strong>Objectif de saison</strong> atteindre 300€ pour le service (142€ récoltés)
+      </span>
+      <span class="flex items-center gap-2 text-[11px] font-medium text-brand/80">
+        <i data-lucide="zap" class="w-3 h-3"></i>
+        ACTUALITÉ : <strong>AlexHunter</strong> vient de débloquer le trophée "Légende de Fer" sur <em>Elden Ring</em>
+      </span>
+      <span class="flex items-center gap-2 text-[11px] font-medium text-white/50">
+        <i data-lucide="award" class="w-3 h-3"></i>
+        <strong>Saria</strong> a atteint la ligue <span class="text-amber-500">Zenith</span> !
+      </span>
+      <span class="flex items-center gap-2 text-[11px] font-medium text-white/50">
+        <i data-lucide="gamepad-2" class="w-3 h-3"></i>
+        Nouveau Jeu GT : <em>Hollow Knight</em> rejoint l'arène.
+      </span>
+    </div>
+  </div>
 
   <!-- Navigation -->
   <nav class="fixed top-0 w-full z-50 nav-glass">
-    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-      <a href="/index.html"
-        class="flex items-center gap-3 font-medium text-[14px] text-subtle hover:text-white cursor-pointer transition-colors">
-        <div
-          class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 transition-transform hover:scale-110 hover:bg-white/10 hover:border-white/30">
-          <i data-lucide="triangle" class="w-3 h-3 text-white"></i>
-        </div>
-        Glorious Trophée
-      </a>
+    <div class="max-w-[1920px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="/index.html"
+          class="flex items-center gap-3 font-medium text-[14px] text-white cursor-pointer transition-colors group">
+          <div
+            class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 transition-transform group-hover:scale-110 group-hover:bg-brand/20 group-hover:border-brand/50">
+            <i data-lucide="triangle" class="w-3 h-3 text-brand"></i>
+          </div>
+          <span class="hidden sm:inline">Glorious Trophée</span>
+        </a>
+      </div>
 
       <!-- Omni Search -->
-      <div class="hidden md:flex flex-1 max-w-md mx-8 relative group">
+      <div class="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8 relative group">
         <i data-lucide="search"
           class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle group-focus-within:text-brand transition-colors"></i>
         <input type="text" placeholder="Rechercher un profil..."
@@ -215,60 +445,253 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
-        <span class="text-white font-semibold hidden sm:block cursor-default">Panthéon</span>
-        <a id="nav-mon-espace" href="/profile.html"
-          class="hover:text-white transition-colors hidden sm:block auth-hidden">Mon Espace</a>
+      <!-- Desktop Links -->
+      <div class="hidden md:flex items-center gap-6 text-[13px] font-medium text-subtle">
+        <div class="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/5 mr-2">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span class="text-[11px] text-emerald-400/90 font-mono">142 CHASSEURS EN LIGNE</span>
+        </div>
+        <span class="text-white font-semibold cursor-default">Panthéon</span>
+        <a id="nav-mon-espace" href="/profile.html" class="hover:text-white transition-colors auth-hidden">Mon
+          Espace</a>
         <a id="nav-login" href="/login.html"
-          class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 border border-white/5">Connexion</a>
+          class="text-white bg-white/10 hover:bg-brand hover:text-white px-4 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95 border border-white/5 hover:border-brand/50 shadow-[0_0_15px_rgba(41,151,255,0)] hover:shadow-[0_0_15px_rgba(41,151,255,0.3)]">Connexion</a>
         <button id="nav-logout"
           class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]">Déconnexion</button>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <div class="flex items-center md:hidden gap-3">
+        <a id="nav-login-mobile" href="/login.html"
+          class="text-white text-[12px] bg-white/10 px-3 py-1 rounded-full border border-white/5">Connexion</a>
+        <button id="mobile-menu-btn" class="text-white p-1 rounded-md hover:bg-white/10 transition-colors">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
       </div>
     </div>
   </nav>
 
+  <!-- Mobile Menu Dropdown -->
+  <div id="mobile-menu"
+    class="hidden fixed top-14 left-0 w-full bg-[#000000]/95 backdrop-blur-xl border-b border-white/10 z-40 transform origin-top transition-all duration-200 opacity-0 -translate-y-2">
+    <div class="p-4 flex flex-col gap-4 text-[14px] font-medium text-subtle">
+      <!-- Mobile Search -->
+      <div class="relative group">
+        <i data-lucide="search"
+          class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle group-focus-within:text-brand transition-colors"></i>
+        <input type="text" placeholder="Rechercher..."
+          class="w-full bg-white/5 border border-white/10 rounded-md py-2 pl-9 pr-3 text-[13px] text-white placeholder-subtle outline-none focus:border-brand/50 focus:bg-white/[0.08] transition-all">
+      </div>
+      <span class="text-brand font-semibold px-2">Panthéon</span>
+      <a id="nav-mon-espace-mobile" href="/profile.html" class="hover:text-white px-2 auth-hidden">Mon Espace</a>
+      <button id="nav-logout-mobile" class="hidden text-red-400 hover:text-red-300 text-left px-2">Déconnexion</button>
+    </div>
+  </div>
+
   <!-- Main Content -->
-  <main class="w-full max-w-6xl mx-auto px-6 pt-28 relative z-10 flex-grow flex flex-col h-full overflow-hidden">
+  <main
+    class="w-full max-w-7xl 2xl:max-w-7xl 4k:max-w-[2400px] mx-auto px-4 sm:px-6 pt-24 md:pt-28 relative z-10 flex-grow flex flex-col xl:h-full xl:overflow-hidden">
 
     <!-- Hero Intro -->
-    <div class="mb-10 text-center stagger-item" style="animation-delay: 0.05s;">
-      <p class="text-lg md:text-xl text-white/80 max-w-4xl mx-auto leading-relaxed">
-        Partagez votre collection de succès et votre bibliothèque de jeux, suivez votre progression et
-        fixez-vous vos propres objectifs de score ou de complétion. Nous vous accompagnons avec des indicateurs précis
-        pour vous aider à les atteindre !
+    <div id="hero-intro" class="mb-10 text-center stagger-item"
+      style="animation-delay: 0.05s; transition: transform 0.1s ease-out;">
+      <p
+        class="text-base sm:text-lg md:text-xl lg:text-2xl 4k:text-4xl font-semibold text-white/90 max-w-4xl mx-auto leading-tight tracking-tight">
+        Dominez le classement. Gravez votre légende.<br class="hidden md:block">
+        L'arène ultime pour les chasseurs de trophées d'élite.
       </p>
     </div>
 
     <!-- Hero Leaderboard -->
-    <div class="mb-10 text-center stagger-item" style="animation-delay: 0.1s;">
-      <h1 class="text-4xl md:text-5xl font-semibold tracking-tight text-white mb-3">Le Panthéon Global</h1>
+    <div id="hero-title" class="mb-6 md:mb-10 text-center stagger-item"
+      style="animation-delay: 0.1s; transition: transform 0.15s ease-out;">
+      <h1
+        class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl 4k:text-8xl font-bold tracking-tight text-white mb-3 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
+        Le Panthéon Global</h1>
     </div>
 
-    <!-- Leaderboard Container (Flex-grow pour remplir l'espace restant) -->
-    <div class="flex-1 flex flex-col relative w-full mb-10 min-h-0">
+    <!-- Layout Grid for Content + Sidebar -->
+    <div class="flex-1 flex flex-col xl:flex-row gap-8 mb-6 min-h-0">
 
-      <!-- Table Header -->
-      <div
-        class="grid grid-cols-[80px_minmax(0,1fr)_120px_120px_120px_140px] px-6 pb-3 text-[11px] font-semibold text-subtle uppercase tracking-widest border-b border-white/5 mb-4 stagger-item hide-sm"
-        style="animation-delay: 0.3s;">
-        <div class="text-center">Rang</div>
-        <div>Joueur</div>
-        <div class="text-right">Succès</div>
-        <div class="text-right hide-mobile">Jeux GT</div>
-        <div class="text-right hide-mobile">Complétion</div>
-        <div class="text-right">Score Glorious</div>
-      </div>
+      <!-- Leaderboard Column -->
+      <div class="flex-1 flex flex-col min-h-0 pb-20 md:pb-0">
 
-      <!-- Leaderboard dynamique — rempli par JS -->
-      <div id="leaderboard-list" class="flex-1 overflow-y-auto pr-2 pb-16 pt-12"
-        style="mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);">
-        <!-- État de chargement -->
-        <div id="leaderboard-loading" class="flex flex-col items-center justify-center py-20 gap-4 stagger-item"
-          style="animation-delay: 0.4s;">
-          <div class="w-8 h-8 border-2 border-brand/30 border-t-brand rounded-full animate-spin"></div>
-          <span class="text-subtle text-[13px]">Chargement du Panthéon…</span>
+        <!-- Table Header -->
+        <div
+          class="grid grid-cols-[80px_minmax(0,1fr)_120px_120px_120px_140px] px-6 pb-3 text-[11px] font-semibold text-subtle uppercase tracking-widest border-b border-white/5 mb-4 stagger-item hide-sm"
+          style="animation-delay: 0.3s;">
+          <div class="text-center">Rang</div>
+          <div>Joueur</div>
+          <div class="text-right">Succès</div>
+          <div class="text-right hide-mobile">Jeux GT</div>
+          <div class="text-right hide-mobile">Complétion</div>
+          <div class="text-right">Score Glorious</div>
+        </div>
+
+        <!-- Leaderboard dynamique — rempli par JS -->
+        <div id="leaderboard-list" class="flex-1 pr-2 pb-32 xl:pb-16 pt-12 xl:overflow-y-auto"
+          style="mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);">
+          <!-- État de chargement Premium (Skeletons) -->
+          <div id="leaderboard-loading" class="flex flex-col gap-3">
+            <div class="leaderboard-row skeleton opacity-50" style="height: 80px; width: 100%"></div>
+            <div class="leaderboard-row skeleton opacity-40" style="height: 80px; width: 100%"></div>
+            <div class="leaderboard-row skeleton opacity-30" style="height: 80px; width: 100%"></div>
+            <div class="leaderboard-row skeleton opacity-20" style="height: 80px; width: 100%"></div>
+            <div class="leaderboard-row skeleton opacity-10" style="height: 80px; width: 100%"></div>
+          </div>
         </div>
       </div>
+
+      <!-- Sidebar Column -->
+      <aside class="w-full xl:w-80 shrink-0 flex flex-col gap-6 stagger-item pb-32 xl:pb-0"
+        style="animation-delay: 0.5s;">
+        <!-- Hunter of the Week -->
+        <div class="widget-card group relative overflow-hidden bg-gradient-to-br from-brand/10 to-transparent">
+          <div class="flex items-center justify-between mb-4">
+            <span
+              class="text-[10px] font-bold text-brand uppercase tracking-widest px-2 py-0.5 rounded bg-brand/10 border border-brand/20">Chasseur
+              de la Semaine</span>
+            <i data-lucide="award" class="w-5 h-5 text-brand sparkle-slow"></i>
+          </div>
+          <div class="flex items-center gap-4">
+            <div
+              class="w-16 h-16 rounded-2xl bg-surface border-2 border-brand/50 flex items-center justify-center overflow-hidden rotate-3 group-hover:rotate-0 transition-transform duration-500 shadow-xl">
+              <img src="https://i.pravatar.cc/150?u=weekly" alt="Weekly Hunter" class="w-full h-full object-cover">
+            </div>
+            <div>
+              <h4 class="font-bold text-white text-lg">NovaChaser</h4>
+              <p class="text-[12px] text-subtle">+1.2k points cette semaine</p>
+            </div>
+          </div>
+          <div class="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+            <span class="text-[11px] text-subtle">Badge Exclusif débloqué</span>
+            <div class="w-6 h-6 rounded-full bg-brand/20 border border-brand/50 flex items-center justify-center">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-brand"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seasonal Objectives (Dual) -->
+        <div id="seasonal-container" class="flex flex-col gap-4">
+          <div id="seasonal-widget-1" class="widget-card">
+            <div class="flex items-center gap-3 mb-4">
+              <div id="seasonal-icon-bg-1" class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <i id="seasonal-icon-1" data-lucide="target" class="w-5 h-5 text-amber-500"></i>
+              </div>
+              <div>
+                <h4 id="seasonal-header-1" class="font-bold text-white text-[15px]">Objectif de Saison</h4>
+                <p id="seasonal-period-1" class="text-[11px] text-subtle">Mars - Avril 2026</p>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <div class="flex justify-between text-[12px]">
+                <span id="seasonal-goal-text-1" class="text-white/80">Cumuler 1000 Succès Bronze</span>
+                <span id="seasonal-stats-1" class="text-amber-500 font-mono">742/1000</span>
+              </div>
+              <div class="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div id="seasonal-progress-bar-1"
+                  class="h-full bg-gradient-to-r from-amber-600 to-amber-400 rounded-full" style="width: 74.2%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="seasonal-widget-2" class="widget-card">
+            <div class="flex items-center gap-3 mb-4">
+              <div id="seasonal-icon-bg-2" class="p-2 rounded-xl bg-brand/10 border border-brand/20">
+                <i id="seasonal-icon-2" data-lucide="zap" class="w-5 h-5 text-brand"></i>
+              </div>
+              <div>
+                <h4 id="seasonal-header-2" class="font-bold text-white text-[15px]">Objectif Secondaire</h4>
+                <p id="seasonal-period-2" class="text-[11px] text-subtle">Mars - Avril 2026</p>
+              </div>
+            </div>
+            <div class="space-y-3">
+              <div class="flex justify-between text-[12px]">
+                <span id="seasonal-goal-text-2" class="text-white/80">Débloquer 5 Trophées Argent</span>
+                <span id="seasonal-stats-2" class="text-brand font-mono">3/5</span>
+              </div>
+              <div class="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div id="seasonal-progress-bar-2" class="h-full bg-gradient-to-r from-brand/60 to-brand/40 rounded-full"
+                  style="width: 60%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trend Games -->
+        <div class="widget-card">
+          <h4 class="text-[13px] font-bold text-white mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="flame" class="w-4 h-4 text-orange-500"></i>
+              Jeux Tendances
+            </div>
+            <span class="text-[10px] text-white/30 uppercase tracking-widest">Succès du mois</span>
+          </h4>
+
+          <div class="space-y-4">
+            <!-- Game 1 -->
+            <div class="flex items-center gap-3 group">
+              <div class="w-10 h-14 rounded-lg bg-surface border border-white/10 overflow-hidden relative shrink-0">
+                <img src="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg"
+                  alt="Elden Ring" class="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[12px] font-bold text-white truncate">Elden Ring</div>
+                <div class="text-[10px] text-subtle mt-1 flex items-center gap-1.5">
+                  <span class="flex items-center gap-0.5 text-orange-400">
+                    <i data-lucide="award" class="w-2.5 h-2.5"></i>
+                    1,242
+                  </span>
+                  <span class="w-1 h-1 rounded-full bg-white/10"></span>
+                  <span class="text-white/40 italic">ce mois</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game 2 -->
+            <div class="flex items-center gap-3 group">
+              <div class="w-10 h-14 rounded-lg bg-surface border border-white/10 overflow-hidden relative shrink-0">
+                <img src="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg"
+                  alt="Cyberpunk 2077" class="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[12px] font-bold text-white truncate">Cyberpunk 2077</div>
+                <div class="text-[10px] text-subtle mt-1 flex items-center gap-1.5">
+                  <span class="flex items-center gap-0.5 text-orange-400">
+                    <i data-lucide="award" class="w-2.5 h-2.5"></i>
+                    842
+                  </span>
+                  <span class="w-1 h-1 rounded-full bg-white/10"></span>
+                  <span class="text-white/40 italic">ce mois</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Game 3 -->
+            <div class="flex items-center gap-3 group">
+              <div class="w-10 h-14 rounded-lg bg-surface border border-white/10 overflow-hidden relative shrink-0">
+                <img src="https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1174180/header.jpg"
+                  alt="Red Dead Redemption 2"
+                  class="w-full h-full object-cover group-hover:scale-110 transition-transform" loading="lazy" decoding="async">
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-[12px] font-bold text-white truncate">Red Dead Redemption 2</div>
+                <div class="text-[10px] text-subtle mt-1 flex items-center gap-1.5">
+                  <span class="flex items-center gap-0.5 text-orange-400">
+                    <i data-lucide="award" class="w-2.5 h-2.5"></i>
+                    615
+                  </span>
+                  <span class="w-1 h-1 rounded-full bg-white/10"></span>
+                  <span class="text-white/40 italic">ce mois</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
 
     </div>
   </main>
@@ -285,6 +708,187 @@
     @keyframes spin {
       to {
         transform: rotate(360deg);
+      }
+    }
+
+    /* RPG Donation XP Bar */
+    .donation-xp-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      z-index: 100;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .xp-bar-container {
+      height: 9px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .xp-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2997ff, #005bb5);
+      box-shadow: 0 0 15px rgba(41, 151, 255, 0.5);
+      position: relative;
+      transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .xp-bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+      animation: xp-shimmer 3s infinite;
+    }
+
+    @keyframes xp-shimmer {
+      0% {
+        left: -100%;
+      }
+
+      50% {
+        left: 100%;
+      }
+
+      100% {
+        left: 100%;
+      }
+    }
+
+    .xp-info-overlay {
+      position: absolute;
+      bottom: 16px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      pointer-events: none;
+    }
+
+    .xp-overlay-inner {
+      width: 100%;
+      max-width: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      pointer-events: none;
+      padding: 0 24px;
+    }
+
+    .xp-badge {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: white;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-geek {
+      position: relative;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-geek:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+
+    /* XP Tooltip Bubble */
+    .xp-tooltip {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 5px 10px;
+      border-radius: 4px;
+      color: #2997ff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .xp-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 5px;
+      border-style: solid;
+      border-color: rgba(255, 255, 255, 0.15) transparent transparent transparent;
+    }
+
+    .btn-geek:hover .xp-tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Responsive Overrides for iPad and Mobile */
+    @media (max-width: 1279px) {
+
+      body,
+      html,
+      main {
+        overflow: visible !important;
+        height: auto !important;
+      }
+
+      #leaderboard-list {
+        overflow: visible !important;
+        flex: none !important;
+        mask-image: none !important;
+        -webkit-mask-image: none !important;
+        padding-bottom: 40px !important;
+      }
+
+      main {
+        padding-bottom: 120px !important;
+      }
+
+      .xl\:flex-row {
+        flex-direction: column !important;
+      }
+
+      aside {
+        width: 100% !important;
+        padding-bottom: 100px !important;
       }
     }
   </style>
@@ -390,58 +994,115 @@
       const completionPct = e.completion_avg.toFixed(1);
       const barOpacity = e.rank === 1 ? '1' : e.rank === 2 ? '0.8' : e.rank === 3 ? '0.6' : '0.4';
 
-      // Mock Perfect Games (Based on rank to seem logical but random)
-      const mockPerfectGames = Math.floor(Math.random() * 51); // Random number between 0 and 50
+      // Rank Specific Glow Logic
+      let glowColor = 'rgba(41,151,255,0.15)'; // Default blue
+      if (e.rank === 1) glowColor = 'rgba(245,158,11,0.25)'; // Gold
+      if (e.rank === 2) glowColor = 'rgba(226,232,240,0.2)'; // Silver
+      if (e.rank === 3) glowColor = 'rgba(180,83,9,0.2)'; // Bronze
+
+      // Mock Perfect Games
+      const mockPerfectGames = Math.floor(Math.random() * 51);
 
       const safeUsername = escapeHtml(e.username);
       const safeDisplayName = escapeHtml(e.display_name || e.username);
       const safeAvatarUrl = escapeHtml(avatarUrl(e.username, e.profile_image_url));
       const encodedUser = encodeURIComponent(e.username);
 
+      // SVG Ring
+      const ringRadius = 18;
+      const circumference = 2 * Math.PI * ringRadius;
+      const offset = circumference - (e.completion_avg / 100 * circumference);
+
+      // Rank Movement Logic (Mock)
+      const moveSeed = (e.rank + (e.display_name || e.username).length) % 3;
+      let movHtml = '';
+      if (moveSeed === 0) {
+        movHtml = `
+          <div class="flex items-center justify-center p-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 group-hover:bg-emerald-500/10 transition-colors">
+            <i data-lucide="trending-up" class="w-3.5 h-3.5 text-emerald-400"></i>
+          </div>`;
+      } else if (moveSeed === 1) {
+        movHtml = `
+          <div class="flex items-center justify-center p-1.5 rounded-lg bg-red-500/5 border border-red-500/20 group-hover:bg-red-500/10 transition-colors">
+            <i data-lucide="trending-down" class="w-3.5 h-3.5 text-red-400"></i>
+          </div>`;
+      } else {
+        movHtml = `
+          <div class="flex items-center justify-center p-1.5 rounded-lg bg-white/5 border border-white/5 opacity-40">
+            <i data-lucide="minus" class="w-3.5 h-3.5 text-white"></i>
+          </div>`;
+      }
+
       return `
-        <div class="leaderboard-row stagger-item group" style="animation-delay:${delay}s" data-url="/profile.html?u=${encodedUser}" role="link" tabindex="0">
-          <div class="text-center ${rankClass} num">${e.rank}</div>
-          <div class="flex items-center gap-4 min-w-0">
-            <div class="w-12 h-12 rounded-full bg-surface border border-white/10 flex items-center justify-center overflow-hidden shrink-0 ${avatarClass} transition-transform group-hover:scale-105">
+        <div class="leaderboard-row stagger-item group row-${e.rank}" 
+             style="animation-delay:${delay}s; --hover-glow: ${glowColor}" 
+             data-url="/profile.html?u=${encodedUser}" role="link" tabindex="0">
+          <div class="flex flex-col items-center justify-center">
+            <div class="${rankClass} num">${e.rank}</div>
+          </div>
+          <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-surface border border-white/10 flex items-center justify-center overflow-hidden shrink-0 ${avatarClass} transition-transform group-hover:scale-105">
               <img src="${safeAvatarUrl}" alt="${safeUsername}" class="w-full h-full object-cover ${imgFilter} transition-all" onerror="this.onerror=null;this.src='https://i.pravatar.cc/150?img=1'">
             </div>
             <div class="min-w-0">
               <div class="flex items-center gap-2 mb-0.5">
-                <h2 class="font-medium text-[15px] text-white truncate ${hoverName} transition-colors">${safeDisplayName}</h2>
+                <h2 class="font-semibold text-[14px] sm:text-[15px] text-white truncate ${hoverName} transition-colors">${safeDisplayName}</h2>
                 ${verifiedBadge}
               </div>
               <div class="flex items-center gap-2">
-                ${leagueBadge}
-                <span class="text-[11px] text-subtle truncate">${safeUsername}</span>
+                <span class="text-[10px] hidden sm:inline">${leagueBadge}</span>
+                <span class="text-[10px] sm:text-[11px] text-subtle truncate">${safeUsername}</span>
               </div>
             </div>
           </div>
           <div class="text-right hide-sm flex flex-col items-end justify-center">
-            <div class="text-[14px] font-medium text-white num">${fmtAch(e.total_achievements)}</div>
+            <div class="text-[13px] sm:text-[14px] lg:text-[15px] 4k:text-[18px] font-medium text-white num">${fmtAch(e.total_achievements)}</div>
             <div class="flex items-center gap-1 mt-0.5">
               <i data-lucide="award" class="w-3 h-3 text-brand"></i>
-              <span class="text-[11px] text-subtle num">succès</span>
+              <span class="text-[10px] sm:text-[11px] lg:text-[12px] 4k:text-[14px] text-subtle num">succès</span>
             </div>
           </div>
           <div class="text-right hide-mobile flex flex-col items-end justify-center">
-            <div class="text-[14px] font-medium text-white/90 num flex items-center gap-1.5">
+            <div class="text-[13px] sm:text-[14px] lg:text-[15px] 4k:text-[18px] font-medium text-white/90 num flex items-center gap-1.5">
               ${mockPerfectGames}
             </div>
-            <div class="text-[11px] text-brand/80 px-1.5 rounded-sm bg-brand/10 font-medium mt-0.5 tracking-wide">
-              GT
+            <div class="text-[10px] sm:text-[11px] lg:text-[12px] 4k:text-[14px] text-brand/80 px-1.5 rounded-sm bg-brand/10 font-medium mt-0.5 tracking-wide opacity-0">
+               &nbsp;
             </div>
           </div>
-          <div class="text-right hide-mobile flex flex-col items-end justify-center">
-            <div class="text-[14px] font-medium text-white/90 num">${completionPct}%</div>
-            <div class="w-16 h-1 mt-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div class="h-full bg-white rounded-full transition-all duration-1000" style="width:${completionPct}%; opacity:${barOpacity}"></div>
-            </div>
+          <div class="text-right flex items-center justify-end min-w-[64px] ml-auto">
+            ${movHtml}
           </div>
           <div class="text-right flex flex-col items-end justify-center">
-            <div class="text-[16px] font-bold ${scoreColor(e.rank)} num tracking-tight">${fmtPts(e.total_points)}</div>
-            <div class="text-[10px] text-subtle uppercase">Points</div>
+            <div class="text-[14px] sm:text-[16px] lg:text-[18px] 4k:text-[24px] font-bold ${scoreColor(e.rank)} num tracking-tight odometer-target" data-value="${e.total_points}">${fmtPts(e.total_points)}</div>
+            <div class="text-[9px] sm:text-[10px] lg:text-[11px] 4k:text-[13px] text-subtle uppercase">Score</div>
           </div>
         </div>`;
+    }
+
+    // ── Animation Odometer ──────────────────────────────────────────────────
+    function initOdometers() {
+      const targets = document.querySelectorAll('.odometer-target');
+      targets.forEach(el => {
+        const val = parseInt(el.dataset.value);
+        if (isNaN(val)) return;
+        animateNumber(el, 0, val, 2000);
+      });
+    }
+
+    function animateNumber(el, start, end, duration) {
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        // Easing function (outExpo)
+        const current = Math.floor(progress === 1 ? end : end * (1 - Math.pow(2, -10 * progress)));
+        el.innerHTML = fmtPts(current);
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        }
+      };
+      window.requestAnimationFrame(step);
     }
 
     // ── Chargement du classement ────────────────────────────────────────────
@@ -460,6 +1121,8 @@
         const rows = data.map((e, i) => buildRow(e, 0.4 + Math.min(i, 20) * 0.04)).join('');
         container.innerHTML = rows;
         lucide.createIcons();
+        // Lancer les odometers hors du chemin critique
+        setTimeout(initOdometers, 200);
       } catch (err) {
         console.error('Leaderboard fetch error:', err);
         container.innerHTML = `
@@ -486,7 +1149,8 @@
       window.location.reload();
     }
 
-    lucide.createIcons();
+    // createIcons après le premier paint pour ne pas bloquer le rendu
+    requestAnimationFrame(() => lucide.createIcons());
     document.getElementById('nav-logout').addEventListener('click', logout);
 
     // Event delegation for dynamically generated leaderboard rows
@@ -507,62 +1171,264 @@
 
     loadLeaderboard();
 
-    // ── Défilement global du Panthéon ───────────────────────────────────────
-    // Smooth scrolling pour une sensation fluide de smartphone
-    let targetScroll = 0;
-    let currentScroll = 0;
-    let isScrolling = false;
+    // Gestion du menu mobile
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (mobileBtn && mobileMenu) {
+      mobileBtn.addEventListener('click', () => {
+        const isHidden = mobileMenu.classList.contains('hidden');
+        if (isHidden) {
+          mobileMenu.classList.remove('hidden');
+          setTimeout(() => {
+            mobileMenu.classList.remove('opacity-0', '-translate-y-2');
+            mobileMenu.classList.add('opacity-100', 'translate-y-0');
+          }, 10);
+          mobileBtn.innerHTML = '<i data-lucide="x" class="w-5 h-5"></i>';
+        } else {
+          mobileMenu.classList.remove('opacity-100', 'translate-y-0');
+          mobileMenu.classList.add('opacity-0', '-translate-y-2');
+          setTimeout(() => {
+            mobileMenu.classList.add('hidden');
+          }, 200);
+          mobileBtn.innerHTML = '<i data-lucide="menu" class="w-5 h-5"></i>';
+        }
+        lucide.createIcons();
+      });
+    }
 
-    // Initialise le targetScroll avec le scroll actuel quand on arrive
-    const container = document.getElementById('leaderboard-list');
+    function updateNavStatus(token) {
+      const loginBtn = document.getElementById('nav-login');
+      const logoutBtn = document.getElementById('nav-logout');
+      const loginBtnMobile = document.getElementById('nav-login-mobile');
+      const logoutBtnMobile = document.getElementById('nav-logout-mobile');
 
-    function smoothScroll() {
-      if (!container) return;
+      const espaceLinks = document.querySelectorAll('.auth-hidden');
 
-      // Interpolation linéaire pour un effet de lissage (easing)
-      // 0.04 donne un effet beaucoup plus doux et traînant (slow mo fluide)
-      currentScroll += (targetScroll - currentScroll) * 0.04;
-      container.scrollTop = currentScroll;
-
-      // Si on est très proche de la cible, on s'arrête pour préserver le CPU
-      if (Math.abs(targetScroll - currentScroll) < 0.5) {
-        currentScroll = targetScroll;
-        container.scrollTop = currentScroll;
-        isScrolling = false;
+      if (token) {
+        if (loginBtn) loginBtn.classList.add('hidden');
+        if (loginBtnMobile) loginBtnMobile.classList.add('hidden');
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+        if (logoutBtnMobile) logoutBtnMobile.classList.remove('hidden');
+        espaceLinks.forEach(link => link.classList.remove('auth-hidden', 'hidden'));
       } else {
-        requestAnimationFrame(smoothScroll);
+        if (loginBtn) loginBtn.classList.remove('hidden');
+        if (loginBtnMobile) loginBtnMobile.classList.remove('hidden');
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+        if (logoutBtnMobile) logoutBtnMobile.classList.add('hidden');
+        espaceLinks.forEach(link => {
+          link.classList.add('auth-hidden');
+          // Important: Si "Mon Espace" a été affiché grâce à hidden sm:block,
+          // on le remet hidden s'il s'appelle nav-mon-espace. Mais vu que l'on 
+          // gère via .auth-hidden, c'est bon.
+        });
       }
     }
 
-    window.addEventListener('wheel', (e) => {
-      if (container) {
-        // Empêcher le scroll brutal natif si on n'est pas déjà dessus (ou s'y on l'est)
-        e.preventDefault();
+    // ── Défilement fluide du leaderboard (desktop uniquement) ───────────────
+    {
+      const lbContainer = document.getElementById('leaderboard-list');
+      // Sur mobile/tablette le scroll natif est déjà fluide — inutile d'intercepter
+      const isDesktop = window.matchMedia('(min-width: 1280px)');
+      let targetScroll = 0, currentScroll = 0, rafId = null;
 
-        // S'assurer qu'on part de la bonne position si l'utilisateur a scrollé manuellement
-        if (!isScrolling) {
-          currentScroll = container.scrollTop;
-          targetScroll = container.scrollTop;
-        }
-
-        // Ajouter le delta avec un multiplicateur pour ralentir la distance de scroll
-        targetScroll += e.deltaY * 0.7;
-
-        // Contraindre targetScroll aux limites du container
-        targetScroll = Math.max(0, Math.min(targetScroll, container.scrollHeight - container.clientHeight));
-
-        if (!isScrolling) {
-          isScrolling = true;
-          requestAnimationFrame(smoothScroll);
+      function smoothScroll() {
+        currentScroll += (targetScroll - currentScroll) * 0.1;
+        lbContainer.scrollTop = currentScroll;
+        if (Math.abs(targetScroll - currentScroll) < 0.5) {
+          lbContainer.scrollTop = targetScroll;
+          currentScroll = targetScroll;
+          rafId = null;
+        } else {
+          rafId = requestAnimationFrame(smoothScroll);
         }
       }
-    }, { passive: false }); // Doit être false pour utiliser preventDefault
+
+      window.addEventListener('wheel', (e) => {
+        if (!lbContainer || !isDesktop.matches) return;
+        e.preventDefault();
+        if (!rafId) currentScroll = lbContainer.scrollTop;
+        targetScroll = Math.max(0, Math.min(
+          targetScroll + e.deltaY * 0.7,
+          lbContainer.scrollHeight - lbContainer.clientHeight
+        ));
+        if (!rafId) rafId = requestAnimationFrame(smoothScroll);
+      }, { passive: false });
+    }
+
+    // ── Parallax Mouse Effect (throttlé à 60fps) ────────────────────────────
+    {
+      let rafPending = false;
+      const intro = document.getElementById('hero-intro');
+      const title = document.getElementById('hero-title');
+      document.addEventListener('mousemove', (e) => {
+        if (rafPending) return;
+        rafPending = true;
+        requestAnimationFrame(() => {
+          const x = (e.clientX - window.innerWidth / 2) / 50;
+          const y = (e.clientY - window.innerHeight / 2) / 50;
+          if (intro) intro.style.transform = `translate(${x * 0.5}px, ${y * 0.5}px)`;
+          if (title) title.style.transform = `translate(${x}px, ${y}px)`;
+          rafPending = false;
+        });
+      }, { passive: true });
+    }
+
+    // ── Stellar Particles (CSS-only, 0 JS loop) ─────────────────────────────
+    function initParticles() {
+      const container = document.getElementById('particles-container');
+      if (!container || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      // Injecter les keyframes une seule fois
+      if (!document.getElementById('particle-style')) {
+        const s = document.createElement('style');
+        s.id = 'particle-style';
+        s.textContent = '@keyframes particle-rise{0%{transform:translateY(0);opacity:.1}50%{opacity:.35}100%{transform:translateY(-180px);opacity:.05}}';
+        document.head.appendChild(s);
+      }
+
+      const frag = document.createDocumentFragment();
+      // 20 particules au lieu de 50 — imperceptible visuellement
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement('div');
+        const size = Math.random() * 2 + 1;
+        const dur = (Math.random() * 10 + 12).toFixed(1);
+        const delay = (Math.random() * -20).toFixed(1);
+        p.style.cssText = `position:absolute;width:${size}px;height:${size}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:white;border-radius:50%;pointer-events:none;animation:particle-rise ${dur}s ${delay}s linear infinite;will-change:transform;`;
+        frag.appendChild(p);
+      }
+      container.appendChild(frag);
+    }
+
+    // Différer les particules après le chargement critique
+    if (document.readyState === 'complete') initParticles();
+    else window.addEventListener('load', initParticles, { once: true });
+
+    // ── Seasonal Objectives Logic ──────────────────────────────────────────
+    const SEASONAL_OBJECTIVES = [
+      {
+        period: "Janvier - Février",
+        goals: [
+          { title: "L'Éveil du Chasseur", task: "Cumuler 500 succès", target: 500, current: 312, color: "text-blue-400", icon: "snowflake" },
+          { title: "Frisson Polaire", task: "Débloquer 3 Platinés", target: 3, current: 1, color: "text-cyan-400", icon: "shield" }
+        ]
+      },
+      {
+        period: "Mars - Avril",
+        goals: [
+          { title: "Renouveau de l'Arène", task: "Compléter 10 jeux", target: 10, current: 7, color: "text-emerald-400", icon: "leaf" },
+          { title: "Chasse de Printemps", task: "Gagner 2000 pts GT", target: 2000, current: 1240, color: "text-green-400", icon: "zap" }
+        ]
+      },
+      {
+        period: "Mai - Juin",
+        goals: [
+          { title: "Zénith Solaire", task: "Atteindre 1M points", target: 1000000, current: 742000, color: "text-amber-400", icon: "sun" },
+          { title: "Guerrier d'Été", task: "Gagner 5 duels", target: 5, current: 2, color: "text-yellow-400", icon: "swords" }
+        ]
+      },
+      {
+        period: "Juillet - Août",
+        goals: [
+          { title: "Canicule des Trophées", task: "50 Platinés globaux", target: 50, current: 28, color: "text-orange-400", icon: "flame" },
+          { title: "Vague de Succès", task: "100 succès Argent", target: 100, current: 64, color: "text-red-400", icon: "droplets" }
+        ]
+      },
+      {
+        period: "Septembre - Octobre",
+        goals: [
+          { title: "Moisson de Succès", task: "20 nouveaux jeux GT", target: 20, current: 14, color: "text-purple-400", icon: "ghost" },
+          { title: "Ambre et Acier", task: "Vaincre 3 boss rares", target: 3, current: 1, color: "text-rose-400", icon: "skull" }
+        ]
+      },
+      {
+        period: "Novembre - Décembre",
+        goals: [
+          { title: "Légende Hivernale", task: "5000 heures de jeu", target: 5000, current: 4120, color: "text-indigo-400", icon: "award" },
+          { title: "Festivités Glorieuses", task: "Offrir 5 badges", target: 5, current: 4, color: "text-pink-400", icon: "gift" }
+        ]
+      }
+    ];
+
+    function updateSeasonalObjective() {
+      const month = new Date().getMonth();
+      const index = Math.floor(month / 2);
+      const season = SEASONAL_OBJECTIVES[index];
+      const year = new Date().getFullYear();
+
+      season.goals.forEach((obj, i) => {
+        const idx = i + 1;
+        document.getElementById(`seasonal-period-${idx}`).innerText = `${season.period} ${year}`;
+        document.getElementById(`seasonal-header-${idx}`).innerText = obj.title;
+        document.getElementById(`seasonal-goal-text-${idx}`).innerText = obj.task;
+
+        const statsEl = document.getElementById(`seasonal-stats-${idx}`);
+        statsEl.innerText = `${obj.current}/${obj.target}`;
+        statsEl.className = `${obj.color} font-mono`;
+
+        const progress = (obj.current / obj.target) * 100;
+        const progressBar = document.getElementById(`seasonal-progress-bar-${idx}`);
+        progressBar.style.width = `${progress}%`;
+        progressBar.className = `h-full bg-gradient-to-r from-${obj.color.split('-')[1]}-600 to-${obj.color.split('-')[1]}-400 rounded-full`;
+
+        const iconBg = document.getElementById(`seasonal-icon-bg-${idx}`);
+        iconBg.className = `p-2 rounded-xl bg-white/5 border border-white/10`;
+
+        const icon = document.getElementById(`seasonal-icon-${idx}`);
+        icon.setAttribute('data-lucide', obj.icon);
+        icon.className = `w-5 h-5 ${obj.color}`;
+      });
+
+      lucide.createIcons();
+    }
+
+    updateSeasonalObjective();
   </script>
 
-  <!-- Footer Copyright -->
-  <div class="fixed bottom-4 right-6 text-[11px] text-white/30 font-medium tracking-wide z-40">
-    © 2026 Glorious Trophée. Tous droits réservés. <span class="mx-1">•</span> <a href="/legal.html"
-      class="hover:text-white transition-colors cursor-pointer pointer-events-auto">Mentions légales</a>
+  <!-- RPG Donation XP Bar -->
+  <div class="donation-xp-container group cursor-help" title="Aidez-nous à maintenir le service en ligne !">
+    <div class="xp-info-overlay">
+      <div class="xp-overlay-inner flex items-center justify-between">
+        <!-- Left: Level Badge + Donate Button -->
+        <div class="flex items-center gap-4 pointer-events-auto">
+          <div class="xp-badge flex items-center gap-2 border-brand/30">
+            <div class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-brand animate-pulse"></span>
+              SERVEUR LVL. 1
+            </div>
+            <span class="w-px h-2.5 bg-white/20"></span>
+            <span class="font-mono text-brand/90">142€ récoltés [XP]</span>
+          </div>
+
+          <!-- Geek Donate Button Container -->
+          <div class="relative group pointer-events-auto">
+            <!-- XP Tooltip Bubble -->
+            <div class="xp-tooltip group-hover:opacity-100 group-hover:translate-y-0">
+              <i data-lucide="trending-up" class="w-3 h-3 text-brand"></i>
+              Gain d'expérience
+            </div>
+
+            <!-- The Button -->
+            <a href="/donation.html" class="btn-geek flex items-center gap-3 px-4 py-0.5 transition-all group">
+              <i data-lucide="heart"
+                class="w-3.5 h-3.5 text-red-500 fill-red-500/10 group-hover:fill-red-500 transition-all"></i>
+              <span class="text-white/90 text-[10px] font-bold uppercase tracking-widest font-mono leading-none">FAIRE UN DON</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Right: Copyright -->
+        <div class="flex justify-end pointer-events-auto">
+          <div class="text-[11px] text-white/30 font-medium tracking-wide hidden md:block text-right">
+            © 2026 Glorious Trophée. <span class="hidden lg:inline">Tous droits réservés.</span> <span
+              class="mx-1">•</span> <a href="/legal.html"
+              class="hover:text-white transition-colors cursor-pointer">Mentions légales</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="xp-bar-container">
+      <div class="xp-bar-fill" style="width: 47.3%"></div>
+    </div>
   </div>
 </body>
 

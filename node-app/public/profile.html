@@ -24,6 +24,10 @@
     tailwind.config = {
       theme: {
         extend: {
+          screens: {
+            '3xl': '1920px',
+            '4k': '2560px',
+          },
           colors: {
             brand: '#2997ff',
             surface: '#111111',
@@ -199,34 +203,128 @@
     .btn-add-game-trigger {
       cursor: pointer;
     }
+
+    /* Ultra Shader Sync Animations */
+    @keyframes sync-aura {
+      0% {
+        transform: rotate(0deg) scale(1);
+        opacity: 0.5;
+      }
+
+      50% {
+        transform: rotate(180deg) scale(1.1);
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: rotate(360deg) scale(1);
+        opacity: 0.5;
+      }
+    }
+
+    .sync-pulsing-aura {
+      position: absolute;
+      inset: -10px;
+      background: radial-gradient(circle, rgba(41, 151, 255, 0.2) 0%, transparent 70%);
+      border-radius: inherit;
+      animation: sync-aura 3s linear infinite;
+      filter: blur(8px);
+      pointer-events: none;
+    }
+
+    @keyframes trophy-discovery {
+      0% {
+        transform: translateY(20px) scale(0.8);
+        opacity: 0;
+        filter: blur(10px) brightness(2);
+      }
+
+      50% {
+        transform: translateY(-5px) scale(1.05);
+        opacity: 1;
+        filter: blur(0px) brightness(1.5);
+      }
+
+      100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+        filter: blur(0px) brightness(1);
+      }
+    }
+
+    .trophy-pop {
+      animation: trophy-discovery 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .shader-bloom {
+      filter: drop-shadow(0 0 8px rgba(41, 151, 255, 0.6));
+    }
+
+    @keyframes chart-fill {
+      from {
+        stroke-dashoffset: 100;
+      }
+
+      to {
+        stroke-dashoffset: var(--target-offset);
+      }
+    }
+
+    .chart-animate {
+      animation: chart-fill 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
   </style>
 </head>
 
 <body class="selection:bg-brand/30 selection:text-white h-[100dvh] overflow-hidden flex flex-col">
 
   <!-- Nav -->
+  <!-- Navigation -->
   <nav class="fixed top-0 w-full z-50 nav-glass">
-    <div class="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+    <div class="max-w-[1920px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
       <a href="/index.html"
-        class="flex items-center gap-3 font-medium text-[14px] text-subtle hover:text-white transition-colors">
+        class="flex items-center gap-3 font-medium text-[14px] text-white cursor-pointer transition-colors group">
         <div
-          class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 hover:bg-white/10">
-          <i data-lucide="triangle" class="w-3 h-3 text-white"></i>
+          class="w-5 h-5 rounded flex items-center justify-center border border-white/20 bg-white/5 transition-transform group-hover:scale-110 group-hover:bg-brand/20 group-hover:border-brand/50">
+          <i data-lucide="triangle" class="w-3 h-3 text-brand"></i>
         </div>
-        Glorious Trophée
+        <span class="hidden sm:inline">Glorious Trophée</span>
       </a>
-      <div class="flex items-center gap-6 text-[13px] font-medium text-subtle">
-        <a href="/index.html" class="hover:text-white transition-colors hidden sm:block">Panthéon</a>
-        <a id="nav-mon-espace" href="/profile.html" class="auth-hidden hidden sm:block transition-colors">Mon Espace</a>
+
+      <!-- Desktop Links -->
+      <div class="hidden md:flex items-center gap-6 text-[13px] font-medium text-subtle">
+        <a href="/index.html" class="hover:text-white transition-colors">Panthéon</a>
+        <a id="nav-mon-espace" href="/profile.html" class="hover:text-white transition-colors auth-hidden">Mon
+          Espace</a>
         <a id="nav-login" href="/login.html"
-          class="text-white bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-full transition-all border border-white/5 hover:scale-105 active:scale-95">Connexion</a>
+          class="text-white bg-white/10 hover:bg-brand hover:text-white px-4 py-1.5 rounded-full transition-all border border-white/5 shadow-[0_0_15px_rgba(41,151,255,0)] hover:shadow-[0_0_15px_rgba(41,151,255,0.3)]">Connexion</a>
         <button id="nav-logout"
           class="hidden text-red-400 hover:text-red-300 transition-colors text-[13px]">Déconnexion</button>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <div class="flex items-center md:hidden gap-3">
+        <a id="nav-login-mobile" href="/login.html"
+          class="text-white text-[12px] bg-white/10 px-3 py-1 rounded-full border border-white/5">Connexion</a>
+        <button id="mobile-menu-btn" class="text-white p-1 rounded-md hover:bg-white/10 transition-colors">
+          <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
       </div>
     </div>
   </nav>
 
-  <main class="w-full max-w-5xl mx-auto px-6 pt-24 relative z-10 flex-grow flex flex-col h-full overflow-hidden">
+  <!-- Mobile Menu Dropdown -->
+  <div id="mobile-menu"
+    class="hidden fixed top-14 left-0 w-full bg-[#000000]/95 backdrop-blur-xl border-b border-white/10 z-40 transform origin-top transition-all duration-200 opacity-0 -translate-y-2">
+    <div class="p-4 flex flex-col gap-4 text-[14px] font-medium text-subtle">
+      <a href="/index.html" class="hover:text-white px-2">Panthéon</a>
+      <a id="nav-mon-espace-mobile" href="/profile.html" class="hover:text-white px-2 auth-hidden">Mon Espace</a>
+      <button id="nav-logout-mobile" class="hidden text-red-400 hover:text-red-300 text-left px-2">Déconnexion</button>
+    </div>
+  </div>
+
+  <main
+    class="w-full max-w-7xl 4k:max-w-[1920px] mx-auto px-4 sm:px-6 pt-24 relative z-10 flex-grow flex flex-col h-full overflow-hidden">
 
     <!-- Back -->
     <div class="mb-6 shrink-0 stagger-item w-full" style="animation-delay:0.05s">
@@ -238,18 +336,18 @@
     </div>
 
     <!-- Scrollable Profile Container -->
-    <div class="flex-1 flex flex-col relative w-full mb-10 min-h-0">
-      <div id="profile-scroll-container" class="flex-1 overflow-y-auto pr-2 pb-16 pt-16"
-        style="mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);">
+    <div class="flex-1 flex flex-col relative w-full mb-6 min-h-0">
+      <div id="profile-scroll-container" class="flex-1 flex flex-col min-h-0 w-full pt-4 pb-2">
 
         <!-- Loading -->
-        <div id="profile-loading" class="flex flex-col items-center justify-center py-32 gap-4">
+        <div id="profile-loading" class="flex flex-col items-center justify-center flex-1 gap-4">
           <div class="w-8 h-8 border-2 border-brand/30 border-t-brand rounded-full animate-spin"></div>
           <span class="text-subtle text-[13px]">Chargement du profil…</span>
         </div>
 
         <!-- Error -->
-        <div id="profile-error" class="hidden flex-col items-center justify-center py-32 gap-4 text-subtle text-[13px]">
+        <div id="profile-error"
+          class="hidden flex-col items-center justify-center flex-1 gap-4 text-subtle text-[13px]">
           <i data-lucide="user-x" class="w-10 h-10 opacity-30"></i>
           <span id="error-msg">Joueur introuvable.</span>
           <a href="/index.html"
@@ -259,23 +357,28 @@
         </div>
 
         <!-- Content -->
-        <div id="profile-content" class="hidden flex-col gap-3">
+        <div id="profile-content" class="hidden flex-col gap-2 h-full min-h-0">
 
           <!-- Header card -->
-          <div id="ph-header" class="card p-8 stagger-item" style="animation-delay:0.1s"></div>
+          <div id="ph-header" class="card p-4 stagger-item shrink-0" style="animation-delay:0.1s"></div>
 
-          <!-- Stats grid -->
-          <div id="ph-stats" class="grid grid-cols-2 gap-4 stagger-item" style="animation-delay:0.15s">
+          <!-- Stats + Points + Défis du mois -->
+          <div class="grid grid-cols-4 gap-2 stagger-item shrink-0" style="animation-delay:0.15s">
+            <div id="ph-stats" class="contents"></div>
+            <div id="ph-points"></div>
+            <div id="ph-challenges"></div>
           </div>
 
           <!-- Espace personnel : succès récents + jeux 100% (isMe uniquement) -->
-          <div class="grid lg:grid-cols-2 gap-4">
-            <div id="ph-achievements" class="stagger-item" style="animation-delay:0.2s"></div>
-            <div id="ph-completed-games" class="stagger-item" style="animation-delay:0.25s"></div>
+          <div class="grid lg:grid-cols-2 gap-2 flex-1 min-h-0">
+            <div id="ph-achievements" class="stagger-item flex flex-col h-full min-h-0" style="animation-delay:0.2s">
+            </div>
+            <div id="ph-completed-games" class="stagger-item flex flex-col h-full min-h-0"
+              style="animation-delay:0.25s"></div>
           </div>
 
           <!-- Profil public : bibliothèque de jeux (!isMe uniquement) -->
-          <div id="ph-games" class="stagger-item" style="animation-delay:0.2s"></div>
+          <div id="ph-games" class="stagger-item flex-1 flex flex-col min-h-0" style="animation-delay:0.2s"></div>
 
         </div>
       </div>
@@ -399,12 +502,29 @@
             </div>
           </div>
 
-          <div class="pt-4 flex justify-end gap-4">
+          <div class="pt-4 flex justify-end gap-4 border-b border-white/5 pb-6 mb-6">
             <button type="button" id="btn-close-settings-2"
               class="px-5 py-2.5 rounded-full text-[14px] font-semibold text-subtle hover:text-white bg-white/5 hover:bg-white/10 transition-colors">Annuler</button>
             <button type="submit" class="btn-primary min-w-[140px] py-2.5 text-[15px]">
               <span id="settings-btn-text">Enregistrer</span>
             </button>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="mt-8 pt-2">
+            <h3
+              class="text-[14px] font-bold text-red-500/80 uppercase tracking-widest mb-4 flex items-center gap-2 px-1">
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i> Zone de danger
+            </h3>
+            <div class="p-4 rounded-xl bg-red-500/5 border border-red-500/10 flex items-center justify-between gap-4">
+              <div class="flex-1">
+                <div class="text-[13px] font-bold text-white mb-0.5">Supprimer mon compte</div>
+                <div class="text-[11px] text-subtle leading-normal">Toutes vos données de jeu, succès et paramètres
+                  seront effacés définitivement.</div>
+              </div>
+              <button type="button" id="btn-delete-account"
+                class="shrink-0 px-4 py-2 rounded-lg text-[12px] font-bold text-red-400 hover:text-white hover:bg-red-500 transition-all border border-red-500/20">Supprimer</button>
+            </div>
           </div>
         </form>
       </div>
@@ -523,6 +643,9 @@
 
         <!-- Clé API optionnelle (Steam seulement) -->
         <div id="platform-apikey-section" class="hidden">
+          <!-- Badge état clé (injecté dynamiquement) -->
+          <div id="platform-apikey-status" class="hidden mb-3"></div>
+
           <label class="block text-[13px] font-medium text-white/90 mb-1.5 ml-1">
             Clé API Steam
             <span class="text-subtle/50 font-normal ml-1">(optionnelle)</span>
@@ -533,6 +656,13 @@
             Nécessaire si votre bibliothèque Steam est privée.
             <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener noreferrer"
               class="text-brand hover:underline">Obtenir ma clé</a>
+          </p>
+          <p class="text-[11px] text-amber-400/60 mt-1 ml-1 flex items-center gap-1">
+            <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01M12 3a9 9 0 110 18A9 9 0 0112 3z" />
+            </svg>
+            Une clé API ne peut être liée qu'à un seul compte.
           </p>
         </div>
 
@@ -700,6 +830,15 @@
 
   <script>
     let currentUserData = null;
+    let steamGamesCache = [];          // données brutes de /api/platforms/steam/games
+    let steamAchievementsCache = [];   // données de /api/platforms/steam/achievements/recent
+    let steamCompletedCache = [];      // données de /api/platforms/steam/games/completed
+    let steamDataLoadedAt = 0;         // timestamp du dernier chargement Steam
+    const STEAM_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    let gogGamesCache = [];            // données de /api/platforms/gog/games
+    let gogAchievementsCache = [];     // données de /api/platforms/gog/achievements/recent
+    let gogCompletedCache = [];        // données de /api/platforms/gog/games/completed
+    let gogDataLoadedAt = 0;           // timestamp du dernier chargement GOG
 
     // ── Protection XSS ──────────────────────────────────────────────────────
     function escapeHtml(str) {
@@ -783,12 +922,28 @@
       return 'avatar-ring-d';
     }
 
-    function renderHeader(d) {
+    function timeAgo(iso) {
+      const m = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+      if (m < 1) return 'à l\'instant';
+      if (m < 60) return `il y a ${m} min`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `il y a ${h}h`;
+      return `il y a ${Math.floor(h / 24)}j`;
+    }
+
+    function renderHeader(d, isMe) {
+      if (isMe === undefined) isMe = localStorage.getItem('auth_user') === d.username;
       const ring = rankRing(d.rank);
       const rankBadge = d.rank > 0
         ? `<span class="num text-[13px] text-subtle font-semibold">#${d.rank}</span>` : '';
 
-      const isMe = localStorage.getItem('auth_user') === d.username;
+      const onlineBadge = d.is_online
+        ? `<span class="flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+             <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>En ligne
+           </span>`
+        : (d.last_seen_at
+          ? `<span class="text-[11px] text-subtle/60">Vu ${timeAgo(d.last_seen_at)}</span>`
+          : '');
 
       const settingsBtn = isMe
         ? `<div class="flex items-center gap-2 ml-2 mt-2 sm:mt-0">
@@ -814,13 +969,29 @@
 
       const renderedPlatforms = (d.platforms || []).map(p => {
         const svg = PLATFORM_SVG[p.platform] || PLATFORM_SVG['steam'];
-        return `<div class="flex items-center gap-1.5 text-subtle hover:text-white transition-colors" title="${escapeHtml(p.platform_username || p.platform)}">
-                  ${svg}
+        // Badge clé API (visible uniquement sur son propre profil)
+        const apiConn = isMe ? connectedPlatforms.find(c => c.platform === p.platform) : null;
+        const hasKey = apiConn?.has_api_key;
+        const keyBadge = (isMe && p.platform === 'steam')
+          ? hasKey
+            ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[9px] font-bold uppercase tracking-wide">
+                <i data-lucide="key" class="w-2.5 h-2.5"></i>Clé active
+              </span>`
+            : `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400/70 text-[9px] font-medium uppercase tracking-wide">
+                <i data-lucide="key" class="w-2.5 h-2.5"></i>Clé serveur
+              </span>`
+          : '';
+        const titleText = p.platform_username
+          ? `${p.platform_username}${hasKey ? ' — Clé API personnelle active' : ''}`
+          : p.platform;
+        return `<div class="flex items-center gap-1.5" title="${escapeHtml(titleText)}">
+                  <div class="text-subtle hover:text-white transition-colors">${svg}</div>
+                  ${keyBadge}
                 </div>`;
-      }).join('<span class="w-1 h-1 rounded-full bg-white/10"></span>');
+      }).join('<span class="w-1 h-1 rounded-full bg-white/10 shrink-0"></span>');
 
       const platformsHtml = d.platforms && d.platforms.length > 0
-        ? `<div class="flex items-center gap-3">
+        ? `<div class="flex items-center gap-3 flex-wrap">
              <div class="w-1 h-1 rounded-full bg-white/20"></div>
              ${renderedPlatforms}
            </div>`
@@ -831,15 +1002,16 @@
           <div class="relative shrink-0 group" ${imgClick} title="${isMe ? 'Modifier la photo' : ''}">
             <img src="${safeAvatarUrl}"
                  alt="${safeUsername}"
-                 class="w-24 h-24 rounded-full object-cover ${ring} ${imgClass}"
+                 class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover ${ring} ${imgClass}"
                  onerror="this.onerror=null;this.src='https://i.pravatar.cc/150?img=1'">
             ${imgOverlay}
           </div>
           <div class="flex-1 text-center sm:text-left">
             <div class="flex flex-wrap items-center justify-center sm:justify-start gap-x-6 gap-y-3 mb-2">
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 flex-wrap">
                 <h1 class="text-[24px] font-bold text-white tracking-tight">${safeDisplayName}</h1>
                 ${rankBadge}
+                ${onlineBadge}
               </div>
               <div class="flex items-center gap-4 py-1.5 px-4 rounded-full bg-white/5 border border-white/10 shadow-sm backdrop-blur-sm">
                 <div class="flex items-center gap-1.5" title="Score Glorious">
@@ -863,7 +1035,7 @@
             </div>
             <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-4">
               ${leagueBadge(d.league)}
-              <span class="text-[12px] text-subtle px-2 py-0.5 rounded bg-white/5 border border-white/5 cursor-default">${safeTitle}</span>
+              <span id="header-active-title" class="text-[12px] text-subtle px-2 py-0.5 rounded bg-white/5 border border-white/5 cursor-default">${safeTitle}</span>
               ${settingsBtn}
             </div>
             <div class="flex flex-col items-center sm:items-start gap-1.5">
@@ -876,64 +1048,166 @@
           </div>
         </div>`;
 
-      const settingsBtnEl = document.getElementById('btn-settings-header');
-      if (settingsBtnEl) settingsBtnEl.addEventListener('click', openSettings);
-
-      const libraryBtnEl = document.getElementById('btn-library-header');
-      if (libraryBtnEl) libraryBtnEl.addEventListener('click', openLibrary);
-
-      const avatarBtnEl = document.getElementById('btn-avatar-header');
-      if (avatarBtnEl) avatarBtnEl.addEventListener('click', openAvatarModal);
+      // Les listeners sont maintenant gérés par délégation d'événements globale au document
     }
 
-    function renderStats(d) {
-      const stats = [
-        { label: 'Rang', value: d.rank > 0 ? '#' + d.rank : 'Non classé', icon: 'trophy', color: 'text-purple-400' },
-      ];
-      const completed = typeof d.games_completed === 'number' ? d.games_completed : 0;
+    // Gestion centralisée des clics sur le header (délégation)
+    document.addEventListener('click', (e) => {
+      const settingsBtn = e.target.closest('#btn-settings-header');
+      if (settingsBtn) {
+        e.preventDefault();
+        openSettings('profile');
+        return;
+      }
+      const libraryBtn = e.target.closest('#btn-library-header');
+      if (libraryBtn) {
+        e.preventDefault();
+        openLibrary();
+        return;
+      }
+      const avatarBtn = e.target.closest('#btn-avatar-header');
+      if (avatarBtn) {
+        e.preventDefault();
+        openAvatarModal();
+        return;
+      }
+    });
 
+    function renderStats(d) {
       const unlocked = d.total_achievements || 0;
       const totalPossible = d.total_possible_achievements || 0;
       const pct = totalPossible > 0 ? (unlocked / totalPossible * 100) : 0;
-
       const offset = 100 - pct;
+      const totalPlayers = d.total_players || 0;
+      const rankVal = d.rank > 0 ? '#' + d.rank : (totalPlayers > 0 ? '#' + totalPlayers : '\u2014');
+      const points = typeof d.total_points === 'number' ? d.total_points : 0;
 
-      const pieHtml = `
-        <div class="card p-6 flex flex-col group hover:border-emerald-500/30 transition-all stagger-item" style="animation-delay:0.1s">
-          <h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
-            <i data-lucide="award" class="w-4 h-4 text-brand"></i> Trophées acquis
+      // Tendance du classement : hausse / baisse / stable / inconnu
+      const snapshotAge = d.rank_snapshot_at ? (Date.now() - new Date(d.rank_snapshot_at).getTime()) : null;
+      const snapshotOld = snapshotAge !== null && snapshotAge > 24 * 3600 * 1000;
+      let rankTrend = '';
+      if (d.rank_snapshot !== null && d.rank_snapshot !== undefined && !snapshotOld) {
+        const diff = d.rank_snapshot - d.rank; // positif = on est monté (rank plus petit = mieux)
+        if (diff > 0) {
+          rankTrend = `<span class="flex items-center justify-center gap-0.5 text-[11px] font-medium text-emerald-400 mt-1">
+            <i data-lucide="trending-up" class="w-3 h-3"></i>+${diff} place${diff > 1 ? 's' : ''}
+          </span>`;
+        } else if (diff < 0) {
+          rankTrend = `<span class="flex items-center justify-center gap-0.5 text-[11px] font-medium text-rose-400 mt-1">
+            <i data-lucide="trending-down" class="w-3 h-3"></i>${diff} place${Math.abs(diff) > 1 ? 's' : ''}
+          </span>`;
+        } else {
+          rankTrend = `<span class="text-[11px] text-subtle/40 mt-1">stable depuis 24h</span>`;
+        }
+      }
+
+      // Troph\u00e9es + Rang dans ph-stats (2 cols)
+      document.getElementById('ph-stats').innerHTML = `
+        <div class="card p-4 flex flex-col group hover:border-emerald-500/30 transition-all stagger-item h-full" style="animation-delay:0.10s">
+          <h2 class="text-[13px] font-semibold text-white mb-2 flex items-center gap-2">
+            <i data-lucide="award" class="w-4 h-4 text-emerald-400"></i> Statistiques
           </h2>
-          <div class="flex-1 flex flex-col items-center justify-center py-2 gap-4">
-            <div class="relative w-[122px] h-[122px] flex items-center justify-center">
+          <div class="flex-1 flex flex-col items-center justify-center gap-2">
+            <div class="relative w-[72px] h-[72px] flex items-center justify-center">
               <svg viewBox="0 0 36 36" class="w-full h-full transform -rotate-90">
-                <circle cx="18" cy="18" r="15.9155" fill="transparent" stroke="rgba(255,255,255,0.08)" stroke-width="2.8"></circle>
-                <circle cx="18" cy="18" r="15.9155" fill="transparent" stroke="currentColor" stroke-width="2.8" 
+                <circle cx="18" cy="18" r="15.9155" fill="transparent" stroke="rgba(255,255,255,0.08)" stroke-width="3"></circle>
+                <circle cx="18" cy="18" r="15.9155" fill="transparent" stroke="currentColor" stroke-width="3"
                   stroke-dasharray="100 100" stroke-dashoffset="${offset}" class="text-emerald-400 transition-all duration-1000 ease-out"></circle>
               </svg>
-              <div class="absolute inset-0 flex flex-col items-center justify-center">
-                <div class="num text-[19px] font-bold text-white leading-tight">${unlocked}</div>
-                <div class="w-10 h-px bg-white/10 my-1.5"></div>
-                <div class="num text-[13px] font-medium text-subtle/50 leading-tight">${totalPossible}</div>
+              <div class="absolute inset-0 flex flex-col items-center justify-center leading-none gap-0.5">
+                <div class="num text-[12px] font-bold text-white">${unlocked}</div>
+                <div class="w-5 h-px bg-white/25"></div>
+                <div class="num text-[10px] font-medium text-white/50">${totalPossible}</div>
               </div>
             </div>
-            <div class="text-[16px] font-bold text-emerald-400">${pct.toFixed(1)}% <span class="text-subtle/40 text-[13px] font-medium ml-1">Complétion</span></div>
+            <div class="text-[13px] font-bold text-emerald-400">${pct.toFixed(1)}<span class="text-subtle/40 text-[11px] font-medium ml-0.5">%</span></div>
+          </div>
+        </div>
+
+        <div class="card p-4 flex flex-col group hover:border-purple-500/30 transition-all stagger-item h-full" style="animation-delay:0.12s">
+          <h2 class="text-[13px] font-semibold text-white mb-2 flex items-center gap-2">
+            <i data-lucide="trophy" class="w-4 h-4 text-purple-400"></i> Classement
+          </h2>
+          <div class="flex-1 flex flex-col items-center justify-center">
+            <div class="num text-[26px] font-extrabold text-white">${rankVal}</div>
+            <div class="text-[11px] text-purple-400/70 mt-0.5">${totalPlayers > 0 ? 'sur ' + totalPlayers + ' joueurs' : '\u2014'}</div>
+            ${rankTrend}
           </div>
         </div>
       `;
 
-      document.getElementById('ph-stats').innerHTML =
-        pieHtml +
-        stats.map(s => `
-          <div class="card p-6 flex flex-col group hover:border-brand/30 transition-all stagger-item" style="animation-delay:0.12s">
-            <h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
-              <i data-lucide="${s.icon}" class="w-4 h-4 text-brand"></i> ${s.label}
+      // Points dans ph-points (col gauche de la ligne suivante)
+      const elPts = document.getElementById('ph-points');
+      if (elPts) {
+        elPts.innerHTML = `
+          <div class="card p-4 flex flex-col group hover:border-brand/30 transition-all stagger-item h-full" style="animation-delay:0.14s">
+            <h2 class="text-[13px] font-semibold text-white mb-2 flex items-center gap-2">
+              <i data-lucide="zap" class="w-4 h-4 text-brand"></i> Points
             </h2>
-            <div class="flex-1 flex flex-col items-center justify-center py-2">
-              <div class="num text-[28px] font-extrabold text-white">${s.value}</div>
-              <div class="text-[12px] font-medium text-purple-400/80 mt-1">${s.value !== 'Non classé' ? 'Classement Global' : '—'}</div>
+            <div class="flex-1 flex flex-col items-center justify-center">
+              <div class="num text-[26px] font-extrabold text-white">${fmtPts(points)}</div>
+              <div class="text-[11px] text-brand/60 mt-1">Score Glorious</div>
             </div>
-          </div>`).join('');
+          </div>
+        `;
+      }
 
+      lucide.createIcons();
+    }
+
+    function renderChallenges(d) {
+      const el = document.getElementById('ph-challenges');
+      if (!el) return;
+
+      const now = new Date();
+      const monthName = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      const unlocked = d.total_achievements || 0;
+      const completed = typeof d.games_completed === 'number' ? d.games_completed : 0;
+      const points = typeof d.total_points === 'number' ? d.total_points : 0;
+
+      const challenges = [
+        { label: 'Accumuler 500 troph\u00e9es', icon: 'award', color: 'emerald', current: unlocked, target: 500 },
+        { label: 'Compl\u00e9ter 5 jeux \u00e0 100%', icon: 'star', color: 'amber', current: completed, target: 5 },
+        { label: 'Atteindre 10\u202f000 points', icon: 'zap', color: 'brand', current: points, target: 10000 },
+      ];
+
+      const colorMap = {
+        emerald: { bar: 'bg-emerald-400', text: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+        amber: { bar: 'bg-amber-400', text: 'text-amber-400', bg: 'bg-amber-400/10' },
+        brand: { bar: 'bg-brand', text: 'text-brand', bg: 'bg-brand/10' },
+      };
+
+      const bars = challenges.map(c => {
+        const pct = Math.min(100, c.target > 0 ? Math.round(c.current / c.target * 100) : 0);
+        const col = colorMap[c.color];
+        const done = pct >= 100;
+        return `
+          <div class="flex items-center gap-3">
+            <div class="w-6 h-6 rounded-lg ${col.bg} flex items-center justify-center shrink-0">
+              <i data-lucide="${c.icon}" class="w-3.5 h-3.5 ${col.text}"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[12px] text-white/80 truncate">${c.label}</span>
+                <span class="text-[11px] font-mono ${done ? col.text : 'text-subtle/60'} ml-2 shrink-0">${done ? '\u2713' : pct + '%'}</span>
+              </div>
+              <div class="h-1 rounded-full bg-white/5 overflow-hidden">
+                <div class="h-full rounded-full ${col.bar} transition-all duration-700" style="width:${pct}%"></div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      el.innerHTML = `
+        <div class="card p-4">
+          <h2 class="text-[13px] font-semibold text-white mb-3 flex items-center gap-2">
+            <i data-lucide="target" class="w-4 h-4 text-rose-400"></i>
+            D\u00e9fis du mois
+            <span class="ml-auto text-[11px] text-subtle/50 font-normal capitalize">${monthName}</span>
+          </h2>
+          <div class="flex flex-col gap-3">${bars}</div>
+        </div>
+      `;
       lucide.createIcons();
     }
 
@@ -956,7 +1230,17 @@
         modal.querySelector('.card').classList.remove('scale-95');
       }, 10);
       if (currentUserData) {
-        libraryState.games = currentUserData.games || [];
+        // Normaliser les jeux Steam vers le format attendu par la bibliothèque
+        libraryState.games = steamGamesCache.map(g => ({
+          title: g.name,
+          platform: 'steam',
+          platform_game_id: String(g.appid),
+          cover_image_url: g.img_icon_url || null,
+          completion_pct: g.completion_pct || 0,
+          achievements_unlocked: g.achievements_unlocked || 0,
+          achievements_total: g.achievements_total || 0,
+          playtime_minutes: g.playtime_minutes || 0,
+        }));
         libraryState.connectedPlatforms = (currentUserData.platforms || []).map(p => p.platform).filter(Boolean);
         libraryState.tab = 'platforms';
         libraryState.selectedPlatform = libraryState.connectedPlatforms[0] || null;
@@ -1136,11 +1420,21 @@
       const el = document.getElementById('ph-games');
       if (isMe) { el.innerHTML = ''; return; } // Library Modal gère la vue isMe
 
-      if (!games || !games.length) { el.innerHTML = ''; return; }
+      // Pour le profil public, games vient du cache Steam (normalisé : appid+name)
+      // ou d'une ancienne source — on normalise ici pour être robuste
+      const normalized = (games || []).map(g => ({
+        title: g.title || g.name || '',
+        platform: g.platform || 'steam',
+        platform_game_id: g.platform_game_id || (g.appid ? String(g.appid) : ''),
+        cover_image_url: g.cover_image_url || g.img_icon_url || null,
+        completion_pct: g.completion_pct || 0,
+      }));
+
+      if (!normalized.length) { el.innerHTML = ''; return; }
 
       // Split : en cours (gauche) | complétés 100% (droite)
-      const inProgress = games.filter(g => Math.round(g.completion_pct) < 100).slice(0, 5);
-      const completed = games.filter(g => Math.round(g.completion_pct) === 100).slice(0, 5);
+      const inProgress = normalized.filter(g => Math.round(g.completion_pct) < 100).slice(0, 5);
+      const completed = normalized.filter(g => Math.round(g.completion_pct) === 100).slice(0, 5);
 
       const makeCard = g => {
         const pct = g.completion_pct.toFixed(0);
@@ -1154,35 +1448,35 @@
         const fallback = `<div class="${imgUrl ? 'hidden' : ''} w-full h-full flex items-center justify-center bg-white/5 text-xl">🎮</div>`;
         return `
         <div class="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-brand/30 transition-all duration-300">
-          <div class="relative h-[76px] overflow-hidden bg-white/[0.03]">
+          <div class="relative h-[64px] overflow-hidden bg-white/[0.03]">
             ${img}${fallback}
             <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
-            <div class="absolute bottom-0 left-0 right-0 px-3 pb-1.5">
-              <div class="text-[12px] font-bold text-white truncate drop-shadow-sm">${escapeHtml(g.title)}</div>
+            <div class="absolute bottom-0 left-0 right-0 px-3 pb-1">
+              <div class="text-[11px] font-bold text-white truncate drop-shadow-sm">${escapeHtml(g.title)}</div>
             </div>
           </div>
-          <div class="px-3 py-1.5 flex items-center justify-between bg-white/[0.02]">
-            <span class="text-[10px] text-subtle/60 capitalize">${escapeHtml(g.platform)}</span>
+          <div class="px-3 py-1 flex items-center justify-between bg-white/[0.02]">
+            <span class="text-[9px] text-subtle/60 capitalize">${escapeHtml(g.platform)}</span>
             ${pct === '100'
-            ? `<i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400"></i>`
-            : `<span class="num text-[10px] font-bold text-brand">${pct}%</span>`}
+            ? `<i data-lucide="check-circle" class="w-3 h-3 text-emerald-400"></i>`
+            : `<span class="num text-[9px] font-bold text-brand">${pct}%</span>`}
           </div>
         </div>`;
       };
 
       const col = (icon, color, label, items) => items.length ? `
-        <div class="card flex flex-col h-[500px] overflow-hidden">
-          <div class="p-6 pb-3 shrink-0">
-            <h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
+        <div class="card flex flex-col h-full overflow-hidden">
+          <div class="p-4 pb-3 shrink-0">
+            <h2 class="text-[13px] font-semibold text-white mb-1 flex items-center gap-2">
               <i data-lucide="${icon}" class="w-4 h-4 ${color}"></i> ${label}
             </h2>
           </div>
-          <div class="px-6 pb-6 overflow-y-auto flex-1 flex flex-col gap-3 scrollbar-hide">
+          <div class="px-4 pb-4 overflow-y-auto flex-1 flex flex-col gap-3 scrollbar-hide">
             ${items.map(makeCard).join('')}
           </div>
         </div>` : '';
 
-      el.innerHTML = `<div class="grid lg:grid-cols-2 gap-4">
+      el.innerHTML = `<div class="grid lg:grid-cols-2 gap-4 h-full">
         ${col('gamepad-2', 'text-brand', 'En cours', inProgress)}
         ${col('check-circle', 'text-emerald-400', 'Terminés à 100%', completed)}
       </div>`;
@@ -1190,136 +1484,182 @@
       lucide.createIcons();
     }
 
-    function renderAchievements(list, isMe) {
+    function renderAchievements(list, isMe, loading = false) {
       const el = document.getElementById('ph-achievements');
       if (!isMe) { el.innerHTML = ''; return; }
       const header = `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
-        <i data-lucide="zap" class="w-4 h-4 text-brand"></i> Succès récents
+        <i data-lucide="zap" class="w-4 h-4 text-brand"></i> Succ\u00e8s r\u00e9cents
       </h2>`;
       if (!list || !list.length) {
-        el.innerHTML = `<div class="card flex flex-col h-[500px]">
-          <div class="p-6 pb-0 shrink-0">${header}</div>
-          <div class="flex-1 flex flex-col items-center justify-center gap-2 text-subtle text-[13px] p-6">
-            <i data-lucide="lock" class="w-8 h-8 opacity-30"></i>Aucun succès débloqué
-          </div></div>`;
+        if (loading) {
+          el.innerHTML = `<div class="card flex flex-col h-full">
+            <div class="p-4 pb-0 shrink-0">${header}</div>
+            <div class="flex-1 flex flex-col gap-3 p-4">
+              ${Array(4).fill(0).map(() => `<div class="flex items-center gap-3 animate-pulse">
+                <div class="w-10 h-10 rounded-lg bg-white/5 shrink-0"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-2.5 rounded bg-white/5 w-3/4"></div>
+                  <div class="h-2 rounded bg-white/5 w-1/2"></div>
+                </div>
+              </div>`).join('')}
+            </div></div>`;
+        } else {
+          el.innerHTML = `<div class="card flex flex-col h-full">
+            <div class="p-4 pb-0 shrink-0">${header}</div>
+            <div class="flex-1 flex flex-col items-center justify-center gap-2 text-subtle text-[13px] p-4">
+              <i data-lucide="lock" class="w-8 h-8 opacity-30"></i>Aucun succ\u00e8s d\u00e9bloqu\u00e9
+            </div></div>`;
+        }
         return;
       }
-      const rows = list.slice(0, 5).map(a => {
-        const dt = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString('fr-FR') : '—';
+      const sorted = (list || []).slice().sort((a, b) => {
+        // Comparaison de strings ISO 8601 directement (lexicographique = chronologique)
+        const da = a.unlocked_at || '';
+        const db = b.unlocked_at || '';
+        return db < da ? -1 : db > da ? 1 : 0;
+      });
+      const rows = sorted.slice(0, 5).map(a => {
+        const rarityKey = a.rarity?.toLowerCase() || 'common';
         const rarityColor = {
           'common': 'emerald-400',
           'rare': 'blue-400',
           'epic': 'purple-400',
           'legendary': 'amber-400',
           'mythic': 'red-400'
-        }[a.rarity?.toLowerCase()] || 'subtle';
+        }[rarityKey] || 'subtle';
+
+        const dt = a.unlocked_at
+          ? new Date(a.unlocked_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '—';
 
         const icon = a.icon_url
-          ? `<img src="${escapeHtml(a.icon_url)}" alt="" class="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500">`
-          : `<div class="w-full h-full flex items-center justify-center bg-white/5 text-xl">🏅</div>`;
+          ? `<img src="${escapeHtml(a.icon_url)}" alt="" loading="lazy" class="w-full h-full object-cover"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          : '';
+        const iconFallback = `<div class="w-full h-full flex items-center justify-center text-2xl" style="${a.icon_url ? 'display:none' : ''}">🏅</div>`;
 
-        const isCommon = a.rarity?.toLowerCase() === 'common';
-        const rarityBadge = isCommon ? '' : `
-          <span class="px-1.5 py-0.5 rounded bg-${rarityColor}/10 border border-${rarityColor}/20 text-${rarityColor} text-[9px] font-bold uppercase tracking-wider shrink-0">
+        const rarityBadge = rarityKey === 'common' ? '' : `
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-${rarityColor}/10 border border-${rarityColor}/20 text-${rarityColor} text-[9px] font-bold uppercase tracking-wider">
             ${RARITY_LABEL[a.rarity] || a.rarity}
           </span>`;
 
         return `
-        <div class="group flex items-center gap-4 py-3.5 px-2 -mx-2 rounded-2xl hover:bg-white/[0.02] transition-all duration-300 border-b border-white/[0.03] last:border-0 border-transparent">
-          <div class="relative w-12 h-12 shrink-0">
-            <div class="absolute inset-0 bg-${rarityColor}/15 blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div class="relative w-12 h-12 bg-white/[0.03] border border-white/10 flex items-center justify-center overflow-hidden z-10 transition-transform group-hover:scale-[1.02]">
-              ${icon}
+        <div class="group flex gap-3 py-1 border-b border-white/[0.04] last:border-0">
+          <!-- Icône grande -->
+          <div class="relative shrink-0">
+            <div class="absolute inset-0 bg-${rarityColor}/20 blur-xl opacity-0 group-hover:opacity-60 transition-opacity rounded-lg"></div>
+            <div class="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10 bg-white/[0.03] flex items-center justify-center z-10">
+              ${icon}${iconFallback}
             </div>
-            <div class="absolute -bottom-1 -right-1 w-4.5 h-4.5 rounded-full bg-[#111] border border-white/10 flex items-center justify-center z-20">
-              <i data-lucide="check" class="w-3 h-3 text-${rarityColor}"></i>
-            </div>
-          </div>
-          
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-0.5">
-              <div class="text-[16px] font-bold text-white truncate leading-tight tracking-tight">${escapeHtml(a.name)}</div>
-              ${rarityBadge}
-            </div>
-            <div class="text-[12px] text-subtle truncate flex items-center gap-2">
-              <span class="font-medium text-white/40">${escapeHtml(a.game_title)}</span>
-              ${a.description ? `<span class="opacity-20 text-[10px]">|</span> <span class="truncate italic opacity-60">${escapeHtml(a.description)}</span>` : ''}
+            <div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#111] border border-white/10 flex items-center justify-center z-20">
+              <i data-lucide="check" class="w-2.5 h-2.5 text-${rarityColor}"></i>
             </div>
           </div>
 
-          <div class="text-right shrink-0">
-            <div class="text-[14px] font-bold text-white num leading-tight">+${a.points}<span class="text-[10px] text-subtle/50 font-semibold ml-0.5">PTS</span></div>
-            <div class="text-[11px] text-subtle/40 font-medium mt-1 uppercase tracking-tighter">${dt}</div>
+          <!-- Infos -->
+          <div class="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[12px] font-bold text-white leading-tight tracking-tight">${escapeHtml(a.name)}</span>
+              ${rarityBadge}
+            </div>
+            ${a.description
+            ? `<div class="text-[10px] text-white/50 leading-snug line-clamp-1">${escapeHtml(a.description)}</div>`
+            : ''}
+            <div class="flex items-center gap-1.5 text-[10px] text-subtle/50">
+              <i data-lucide="gamepad-2" class="w-3 h-3 shrink-0"></i>
+              <span class="truncate">${escapeHtml(a.game_title)}</span>
+            </div>
+          </div>
+
+          <!-- Date + points -->
+          <div class="shrink-0 flex flex-col items-end justify-center gap-0.5">
+            <div class="text-[11px] font-bold text-white num">+${a.points}<span class="text-[8px] text-subtle/50 font-semibold ml-0.5">PT</span></div>
+            <div class="flex items-center gap-1 text-[9px] text-subtle/40 font-medium uppercase tracking-wide">
+              <i data-lucide="calendar" class="w-2.5 h-2.5"></i>
+              ${dt}
+            </div>
           </div>
         </div>`;
       }).join('');
 
       el.innerHTML = `
-        <div class="card flex flex-col h-[500px] overflow-hidden">
-          <div class="p-6 pb-2 shrink-0">${header}</div>
-          <div class="p-6 pt-0 overflow-y-auto flex-1 scrollbar-hide">
-            <div class="flex flex-col">${rows}</div>
+        <div class="card flex flex-col overflow-hidden h-full">
+          <div class="p-4 pb-2 shrink-0">${header}</div>
+          <div class="px-4 pb-4 overflow-y-auto flex-1 flex flex-col scrollbar-hide">
+            ${rows}
           </div>
         </div>`;
       lucide.createIcons();
     }
 
-    function renderCompletedGames(list, isMe) {
+    function renderCompletedGames(steamGames, isMe, loading = false) {
       const el = document.getElementById('ph-completed-games');
       if (!isMe) { el.innerHTML = ''; return; }
-      const header = `<h2 class="text-[13px] font-semibold text-white mb-4 flex items-center gap-2">
+      const header = `<h2 class="text-[13px] font-semibold text-white flex items-center gap-2">
         <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i> Jeux terminés à 100%
       </h2>`;
 
-      if (!list || !list.length) {
-        el.innerHTML = `<div class="card flex flex-col h-[500px]">
-          <div class="p-6 pb-0 shrink-0">${header}</div>
-          <div class="flex-1 flex flex-col items-center justify-center gap-2 text-subtle text-[13px] p-6">
-            <i data-lucide="star" class="w-8 h-8 opacity-30"></i>Aucun jeu complété à 100%
+      // Normaliser le format multi-plateforme (Steam + GOG)
+      const list = (steamGames || []).slice(0, 5).map(g => ({
+        title: g.name || g.title || '',
+        platform: g.platform || 'steam',
+        platform_game_id: g.appid ? String(g.appid) : (g.platform_game_id || ''),
+        achievements_total: g.achievements_total || 0,
+      }));
+
+      // Squelette (loading=true) ou état vide
+      if (!list.length) {
+        if (loading) {
+          el.innerHTML = `<div class="card flex flex-col h-full">
+            <div class="p-4 pb-3 shrink-0 flex items-center justify-between">${header}</div>
+            <div class="flex gap-2 px-4 pb-4" style="height:110px">
+              ${Array(5).fill(0).map(() => `
+                <div class="flex-1 rounded-lg overflow-hidden bg-white/[0.04] animate-pulse relative" style="min-width:0">
+                  <div class="absolute bottom-0 left-0 right-0 px-2 pb-1.5 space-y-1">
+                    <div class="h-2 rounded bg-white/10 w-3/4"></div>
+                    <div class="h-1.5 rounded bg-white/[0.06] w-1/2"></div>
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>`;
+          return;
+        }
+        el.innerHTML = `<div class="card flex flex-col h-full">
+          <div class="p-4 pb-0 shrink-0">${header}</div>
+          <div class="flex-1 flex flex-col items-center justify-center gap-2 text-subtle text-[13px] p-4">
+            <i data-lucide="star" class="w-8 h-8 opacity-30"></i>Aucun jeu compl\u00e9t\u00e9 \u00e0 100%
           </div></div>`;
         return;
       }
 
-      const cards = list.slice(0, 5).map(g => {
+      const cards = list.map(g => {
         const isSteam = g.platform === 'steam' && g.platform_game_id;
         const bannerUrl = isSteam
           ? `https://cdn.akamai.steamstatic.com/steam/apps/${encodeURIComponent(g.platform_game_id)}/header.jpg`
           : sanitizeUrl(g.cover_image_url);
 
-        const bannerImg = bannerUrl
-          ? `<img src="${escapeHtml(bannerUrl)}" alt="${escapeHtml(g.title)}"
-               class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-          : '';
-        const fallback = `<div class="w-full h-full flex items-center justify-center bg-white/5 text-2xl" style="${bannerUrl ? 'display:none' : ''}">🎮</div>`;
-
         return `
-        <div class="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-emerald-500/30 transition-all duration-300 shrink-0">
-          <!-- Bannière -->
-          <div class="relative h-[84px] overflow-hidden bg-white/[0.03]">
-            ${bannerImg}${fallback}
-            <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
-            <!-- Badge complété -->
-            <div class="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500/90 backdrop-blur-sm flex items-center justify-center">
-              <i data-lucide="check" class="w-3 h-3 text-white"></i>
+        <div class="group relative rounded-lg overflow-hidden border border-white/[0.06] hover:border-emerald-500/40 transition-all duration-300 flex-1 min-w-0" style="min-width:0">
+          <div class="relative w-full h-full bg-white/[0.03]">
+            ${bannerUrl ? `<img src="${escapeHtml(bannerUrl)}" alt="${escapeHtml(g.title)}" loading="lazy"
+               class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+               onerror="this.style.display='none'">` : ''}
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+            <div class="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500/90 flex items-center justify-center shadow">
+              <i data-lucide="check" class="w-2.5 h-2.5 text-white"></i>
             </div>
-            <!-- Titre en overlay -->
-            <div class="absolute bottom-0 left-0 right-0 px-3 pb-2">
-              <div class="text-[13px] font-bold text-white truncate leading-tight drop-shadow-sm">${escapeHtml(g.title)}</div>
+            <div class="absolute bottom-0 left-0 right-0 px-2 pb-1.5">
+              <div class="text-[11px] font-bold text-white leading-tight drop-shadow line-clamp-2">${escapeHtml(g.title)}</div>
+              <div class="num text-[10px] text-emerald-400/80 font-medium mt-0.5">${g.achievements_total} succès</div>
             </div>
-          </div>
-          <!-- Footer -->
-          <div class="px-3 py-2 flex items-center justify-between bg-white/[0.02]">
-            <span class="text-[11px] text-subtle/60 capitalize font-medium">${escapeHtml(g.platform)}</span>
-            <span class="num text-[11px] font-bold text-white/70">${g.achievements_total} <span class="text-subtle/40 font-semibold">succès</span></span>
           </div>
         </div>`;
       }).join('');
 
       el.innerHTML = `
-        <div class="card flex flex-col h-[500px] overflow-hidden">
-          <div class="p-6 pb-3 shrink-0">${header}</div>
-          <div class="px-6 pb-6 overflow-y-auto flex-1 flex flex-col gap-3 scrollbar-hide">
+        <div class="card flex flex-col h-full overflow-hidden">
+          <div class="p-4 pb-3 shrink-0 flex items-center justify-between">${header}</div>
+          <div class="flex gap-2 px-4 pb-4" style="height:110px">
             ${cards}
           </div>
         </div>`;
@@ -1335,52 +1675,69 @@
     // ── Settings Modal ────────────────────────────────────────────────────────
 
     function switchSettingsTab(tab) {
+      console.log('Switching to settings tab:', tab);
       const isProfile = tab === 'profile';
-      document.getElementById('settings-tab-profile').classList.toggle('hidden', !isProfile);
-      document.getElementById('settings-tab-platforms').classList.toggle('hidden', isProfile);
+      const tabProfile = document.getElementById('settings-tab-profile');
+      const tabPlatforms = document.getElementById('settings-tab-platforms');
+      if (tabProfile) tabProfile.classList.toggle('hidden', !isProfile);
+      if (tabPlatforms) tabPlatforms.classList.toggle('hidden', isProfile);
+
       const btnProfile = document.getElementById('tab-btn-profile');
       const btnPlatforms = document.getElementById('tab-btn-platforms');
-      btnProfile.classList.toggle('text-white', isProfile);
-      btnProfile.classList.toggle('border-brand', isProfile);
-      btnProfile.classList.toggle('text-subtle', !isProfile);
-      btnProfile.classList.toggle('border-transparent', !isProfile);
-      btnPlatforms.classList.toggle('text-white', !isProfile);
-      btnPlatforms.classList.toggle('border-brand', !isProfile);
-      btnPlatforms.classList.toggle('text-subtle', isProfile);
-      btnPlatforms.classList.toggle('border-transparent', isProfile);
+      if (btnProfile) {
+        btnProfile.classList.toggle('text-white', isProfile);
+        btnProfile.classList.toggle('border-brand', isProfile);
+        btnProfile.classList.toggle('text-subtle', !isProfile);
+        btnProfile.classList.toggle('border-transparent', !isProfile);
+      }
+      if (btnPlatforms) {
+        btnPlatforms.classList.toggle('text-white', !isProfile);
+        btnPlatforms.classList.toggle('border-brand', !isProfile);
+        btnPlatforms.classList.toggle('text-subtle', isProfile);
+        btnPlatforms.classList.toggle('border-transparent', isProfile);
+      }
+
       if (!isProfile) {
-        loadPlatforms().then(() => renderPlatformsSection());
+        loadPlatforms().then(() => renderPlatformsSection()).catch(e => console.error('Error loading platforms:', e));
       }
     }
 
     function openSettings(targetTab) {
-      const modal = document.getElementById('settings-modal');
-      const inner = modal?.querySelector('.card');
-      const errorWrapper = document.getElementById('settings-err-wrapper');
-      const successWrapper = document.getElementById('settings-success-wrapper');
-      const nameInput = document.getElementById('settings-display-name');
+      console.log('openSettings called with:', targetTab);
+      try {
+        const modal = document.getElementById('settings-modal');
+        const inner = modal?.querySelector('.card');
+        const errorWrapper = document.getElementById('settings-err-wrapper');
+        const successWrapper = document.getElementById('settings-success-wrapper');
+        const nameInput = document.getElementById('settings-display-name');
 
-      if (!modal || !inner) return;
+        if (!modal || !inner) {
+          console.error('Settings modal or inner card not found!', { modal, inner });
+          return;
+        }
 
-      errorWrapper?.classList.remove('show');
-      successWrapper?.classList.remove('show');
+        errorWrapper?.classList.remove('show');
+        successWrapper?.classList.remove('show');
 
-      const currentName = document.querySelector('#ph-header h1')?.textContent;
-      if (currentName && nameInput) nameInput.value = currentName;
+        const currentName = document.querySelector('#ph-header h1')?.textContent;
+        if (currentName && nameInput) nameInput.value = currentName;
 
-      const currentTitle = document.querySelector('#ph-header .text-subtle.px-2.py-0.5')?.textContent;
-      loadUnlockedTitles(currentTitle);
+        const currentTitle = document.getElementById('header-active-title')?.textContent;
+        loadUnlockedTitles(currentTitle);
 
-      const activeTab = (typeof targetTab === 'string') ? targetTab : 'profile';
-      switchSettingsTab(activeTab);
+        const activeTab = (typeof targetTab === 'string') ? targetTab : 'profile';
+        switchSettingsTab(activeTab);
 
-      modal.classList.remove('hidden');
-      setTimeout(() => {
-        modal.classList.remove('opacity-0');
-        inner.classList.remove('scale-95');
-      }, 10);
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          modal.classList.remove('opacity-0');
+          inner.classList.remove('scale-95');
+        }, 10);
 
-      if (activeTab === 'profile' && nameInput) nameInput.focus();
+        if (activeTab === 'profile' && nameInput) nameInput.focus();
+      } catch (err) {
+        console.error('Fatal error in openSettings:', err);
+      }
     }
 
     function closeSettings() {
@@ -1450,7 +1807,7 @@
         const h1 = document.querySelector('#ph-header h1');
         if (h1) h1.textContent = newName || localStorage.getItem('auth_user');
 
-        const titleSpan = document.querySelector('#ph-header .text-subtle.px-2.py-0.5');
+        const titleSpan = document.getElementById('header-active-title');
         if (titleSpan) titleSpan.textContent = newTitle;
 
         setTimeout(() => closeSettings(), 1500);
@@ -1489,6 +1846,41 @@
         if (window.lucide) lucide.createIcons();
       } catch (err) {
         select.innerHTML = '<option value="">Erreur de chargement</option>';
+      }
+    }
+
+    async function deleteAccount() {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const confirmed = confirm("Voulez-vous vraiment supprimer votre compte ? Cette action est irréversible.");
+      if (!confirmed) return;
+
+      const secondConfirmed = confirm("Dernière chance : TOUTES vos données (succès, jeux, stats) seront supprimées définitivement. Confirmer ?");
+      if (!secondConfirmed) return;
+
+      try {
+        const res = await fetch('/api/users/me/delete', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          throw new Error(d.error || "Impossible de supprimer le compte.");
+        }
+
+        // Cleanup and redirect
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        alert("Votre compte a été supprimé avec succès.");
+        location.href = '/index.html';
+
+      } catch (err) {
+        alert(err.message);
       }
     }
 
@@ -1682,67 +2074,152 @@
         const conn = connectedPlatforms.find(c => c.platform === key);
         const connected = !!conn;
         const isEpic = key === 'epic';
-        const statusColor = connected ? 'text-emerald-400' : 'text-subtle/60';
-        const dotColor = connected ? 'bg-emerald-400' : 'bg-white/20';
-        const badgeHtml = meta.badge
-          ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">${escapeHtml(meta.badge)}</span>`
-          : '';
-        const syncHtml = connected && conn.last_synced_at
-          ? `<div class="text-[11px] text-subtle/50 mt-0.5">Sync\u00a0: ${escapeHtml(new Date(conn.last_synced_at).toLocaleDateString('fr-FR'))}</div>`
+        const hasApiKey = connected && key === 'steam' && conn.has_api_key;
+
+        // Icône plateforme
+        const iconBg = connected
+          ? (hasApiKey ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-brand/10 border-brand/20')
+          : 'bg-white/[0.03] border-white/[0.06]';
+        const iconColor = connected
+          ? (hasApiKey ? 'text-emerald-400' : 'text-brand')
+          : 'text-white/25';
+
+        // Badge statut connexion
+        const connBadge = connected
+          ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold uppercase tracking-wide">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Connect\u00e9
+            </span>`
+          : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/30 text-[10px] font-medium uppercase tracking-wide">
+              <span class="w-1.5 h-1.5 rounded-full bg-white/20"></span>Non connect\u00e9
+            </span>`;
+
+        // Badge expérimental/accès limité
+        const expBadge = meta.badge
+          ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-medium">${escapeHtml(meta.badge)}</span>`
           : '';
 
+        // Infos sync
+        const syncInfo = connected && conn.last_synced_at
+          ? `<div class="flex items-center gap-1 text-[11px] text-white/30 mt-1">
+              <i data-lucide="clock" class="w-3 h-3 shrink-0"></i>
+              Dernière sync\u00a0: ${escapeHtml(new Date(conn.last_synced_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }))}
+            </div>`
+          : '';
+
+        // Bloc clé API (Steam connecté uniquement)
+        const apikeyBlock = (connected && key === 'steam')
+          ? hasApiKey
+            ? `<div class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/8 border border-emerald-500/20">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>
+                <div class="flex-1 min-w-0">
+                  <span class="text-[12px] font-semibold text-emerald-400">Clé API configurée</span>
+                  <span class="text-[11px] text-emerald-400/50 ml-1.5">— liaison exclusive à ce compte</span>
+                </div>
+                <button data-action="update-apikey" data-platform="${key}"
+                  class="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/25 transition-colors flex items-center gap-1">
+                  <i data-lucide="pencil" class="w-3 h-3"></i>Modifier
+                </button>
+              </div>`
+            : `<div class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/6 border border-amber-500/15">
+                <i data-lucide="key" class="w-3.5 h-3.5 text-amber-400/60 shrink-0"></i>
+                <div class="flex-1 min-w-0">
+                  <span class="text-[12px] font-medium text-amber-400/70">Aucune clé API personnelle</span>
+                  <span class="text-[11px] text-white/25 ml-1.5">— clé serveur partagée utilisée</span>
+                </div>
+                <button data-action="update-apikey" data-platform="${key}"
+                  class="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-semibold text-amber-400/80 hover:text-amber-300 hover:bg-amber-500/15 border border-amber-500/25 transition-colors flex items-center gap-1">
+                  <i data-lucide="plus" class="w-3 h-3"></i>Ajouter
+                </button>
+              </div>`
+          : (connected && key === 'gog')
+          ? conn.has_api_key
+            ? `<div class="mt-3 space-y-1.5">
+                <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/8 border border-emerald-500/20">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>
+                  <div class="flex-1 min-w-0">
+                    <span class="text-[12px] font-semibold text-emerald-400">Token OAuth configuré</span>
+                    <span class="text-[11px] text-emerald-400/50 ml-1.5">— achievements en direct actifs</span>
+                  </div>
+                  <button data-action="update-token" data-platform="${key}"
+                    class="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/25 transition-colors flex items-center gap-1">
+                    <i data-lucide="refresh-cw" class="w-3 h-3"></i>Renouveler
+                  </button>
+                </div>
+                <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/6 border border-amber-500/12">
+                  <i data-lucide="clock" class="w-3 h-3 text-amber-400/60 shrink-0"></i>
+                  <span class="text-[11px] text-amber-400/60">Expire après ~1h — renouvelez si la sync échoue.</span>
+                </div>
+              </div>`
+            : `<div class="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+                <i data-lucide="key" class="w-3.5 h-3.5 text-white/30 shrink-0"></i>
+                <div class="flex-1 min-w-0">
+                  <span class="text-[12px] font-medium text-white/50">Sans token</span>
+                  <span class="text-[11px] text-white/25 ml-1.5">— jeux synchronisés, achievements live désactivés</span>
+                </div>
+                <button data-action="update-token" data-platform="${key}"
+                  class="shrink-0 px-2.5 py-1 rounded-md text-[11px] font-semibold text-brand/80 hover:text-brand hover:bg-brand/10 border border-brand/25 transition-colors flex items-center gap-1">
+                  <i data-lucide="plus" class="w-3 h-3"></i>Ajouter
+                </button>
+              </div>`
+          : '';
+
+        // Boutons d'action principaux
         let actions;
         if (isEpic) {
-          actions = `<button class="px-3 py-1.5 rounded-lg text-[12px] text-subtle/40 cursor-not-allowed" disabled>Bient\u00f4t disponible</button>`;
+          actions = `<span class="px-3 py-1.5 rounded-lg text-[12px] text-white/20 border border-white/[0.06] cursor-not-allowed">Bient\u00f4t</span>`;
         } else if (connected) {
-          const apiKeyBtn = key === 'steam'
-            ? `<button data-action="update-apikey" data-platform="${key}"
-                title="${conn.has_api_key ? 'Clé API configurée — cliquer pour modifier' : 'Aucune clé API — cliquer pour en ajouter une'}"
-                class="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors flex items-center gap-1.5 ${conn.has_api_key ? 'text-emerald-400/80 hover:text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/20' : 'text-subtle hover:text-white hover:bg-white/10 border border-white/10'}">
-                <i data-lucide="key" class="w-3 h-3"></i>${conn.has_api_key ? 'Cl\u00e9&nbsp;API&nbsp;\u2713' : 'Cl\u00e9 API'}
-              </button>` : '';
-          actions = `<div class="flex items-center gap-2">
-            ${apiKeyBtn}
+          actions = `<div class="flex items-center gap-2 mt-4 pt-4 border-t border-white/[0.04]">
             <button id="btn-sync-${key}" data-action="sync" data-platform="${key}"
-              class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-brand hover:text-white hover:bg-brand/20 border border-brand/20 transition-colors flex items-center gap-1.5">
-              <i data-lucide="refresh-cw" class="w-3 h-3"></i>Sync
+              class="flex-1 px-3 py-2 rounded-lg text-[12px] font-medium text-brand hover:text-white bg-brand/8 hover:bg-brand/20 border border-brand/20 transition-colors flex items-center justify-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Synchroniser
             </button>
             <button data-action="disconnect" data-platform="${key}"
-              class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-red-400/70 hover:text-red-400 hover:bg-red-500/10 border border-red-500/10 transition-colors">
-              D\u00e9connecter
+              class="px-3 py-2 rounded-lg text-[12px] font-medium text-red-400/50 hover:text-red-400 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/25 transition-colors flex items-center gap-1.5">
+              <i data-lucide="unlink" class="w-3.5 h-3.5"></i>D\u00e9connecter
             </button>
           </div>`;
         } else {
-          actions = `<button data-action="connect" data-platform="${key}"
-            class="px-3 py-1.5 rounded-lg text-[12px] font-medium text-white bg-white/10 hover:bg-white/20 border border-white/10 transition-colors flex items-center gap-1.5">
-            <i data-lucide="link" class="w-3 h-3"></i>Connecter
-          </button>`;
+          actions = `<div class="mt-4 pt-4 border-t border-white/[0.04]">
+            <button data-action="connect" data-platform="${key}"
+              class="w-full px-3 py-2 rounded-lg text-[12px] font-medium text-white bg-brand/15 hover:bg-brand/25 border border-brand/25 transition-colors flex items-center justify-center gap-1.5">
+              <i data-lucide="link" class="w-3.5 h-3.5"></i>Connecter ${escapeHtml(meta.name)}
+            </button>
+          </div>`;
         }
 
-        return `<div class="flex items-center justify-between py-5 border-b border-white/5 last:border-0 gap-4">
-          <div class="flex items-center gap-4 overflow-hidden">
-            <div class="w-11 h-11 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0 ${statusColor}">
+        return `<div class="rounded-xl bg-white/[0.02] border ${connected ? (hasApiKey ? 'border-emerald-500/15' : 'border-white/[0.06]') : 'border-white/[0.04]'} p-4 mb-3 last:mb-0">
+          <!-- En-tête carte -->
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl border ${iconBg} flex items-center justify-center shrink-0 ${iconColor}">
               ${PLATFORM_SVG[key] || ''}
             </div>
-            <div class="overflow-hidden">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-[16px] font-semibold text-white truncate">${escapeHtml(meta.name)}</span>
-                ${badgeHtml}
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[15px] font-semibold text-white">${escapeHtml(meta.name)}</span>
+                ${connBadge}
+                ${expBadge}
               </div>
-              <div class="flex items-center gap-1.5 text-[13px] ${statusColor}">
-                <span class="w-2 h-2 rounded-full ${dotColor}"></span>
-                <span>${connected ? 'Connecté' : 'Non connecté'}</span>
-              </div>
-              ${syncHtml}
+              ${connected && conn.platform_username
+            ? `<div class="text-[12px] text-white/40 mt-0.5 truncate">${escapeHtml(conn.platform_username)}</div>`
+            : `<div class="text-[12px] text-white/20 mt-0.5">${connected ? '' : 'Non reli\u00e9'}</div>`}
+              ${syncInfo}
             </div>
           </div>
-          <div class="shrink-0">${actions}</div>
+
+          <!-- Bloc clé API (Steam) -->
+          ${apikeyBlock}
+
+          <!-- Actions -->
+          ${actions}
         </div>`;
       }).join('');
 
       el.innerHTML = `<div>${cards}</div>`;
       lucide.createIcons();
     }
+
+    // Sauvegarde du HTML original de la section apikey (Steam) pour pouvoir la restaurer après GOG
+    let _apikeyOriginalHTML = null;
 
     function openPlatformModal(platform, mode = 'connect') {
       currentPlatformToConnect = platform;
@@ -1753,6 +2230,13 @@
       const apikeySection = document.getElementById('platform-apikey-section');
       const userIdSection = document.getElementById('platform-user-id-section');
       const submitRow = document.getElementById('platform-submit-row');
+
+      // Sauvegarder le HTML Steam la première fois, restaurer si on revient à Steam
+      if (_apikeyOriginalHTML === null) {
+        _apikeyOriginalHTML = apikeySection.innerHTML;
+      } else if (platform !== 'gog') {
+        apikeySection.innerHTML = _apikeyOriginalHTML;
+      }
       const hintEl = document.getElementById('platform-user-id-hint');
       const titleEl = document.getElementById('platform-modal-title');
       const btnText = document.getElementById('platform-btn-text');
@@ -1773,8 +2257,40 @@
         apikeySection.classList.remove('hidden');
         userIdSection.classList.add('hidden');
         submitRow.classList.add('hidden');
+      } else if (platform === 'gog' && mode === 'update-token') {
+        // Mode : renouvellement du token GOG uniquement (compte déjà connecté)
+        titleEl.textContent = 'Token OAuth GOG';
+        btnText.textContent = 'Enregistrer';
+        steamOauth.classList.add('hidden');
+        userIdSection.classList.add('hidden');
+        submitRow.classList.remove('hidden');
+        apikeySection.classList.remove('hidden');
+        apikeySection.innerHTML = `
+          <div class="mb-3 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+            <svg class="w-4 h-4 text-white/40 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="text-[12px] text-white/50">Dans <strong class="text-white/70">GOG Galaxy</strong>, allez dans
+              <strong class="text-white/70">Paramètres → Connexions</strong>, puis copiez le token d'accès.</span>
+          </div>
+          <div id="platform-apikey-status" class="hidden mb-3"></div>
+          <label class="block text-[13px] font-medium text-white/90 mb-1.5 ml-1">Nouveau token</label>
+          <input type="text" id="platform-apikey" class="input-clean font-mono text-[12px]"
+            placeholder="eyJhbGciOi..." autocomplete="off" maxlength="2048">
+          <p class="text-[11px] text-amber-400/60 mt-1.5 ml-1">Le token expire après ~1h — renouvelez-le dès que la synchronisation échoue.</p>`;
+      } else if (platform === 'gog') {
+        // Mode : première connexion GOG via nom d'utilisateur
+        titleEl.textContent = 'Connecter GOG';
+        btnText.textContent = 'Connecter';
+        steamOauth.classList.add('hidden');
+        userIdSection.classList.remove('hidden');
+        apikeySection.classList.add('hidden');
+        submitRow.classList.remove('hidden');
+        document.getElementById('platform-user-id-label').textContent = 'Nom d\'utilisateur GOG';
+        hintEl.innerHTML = 'Votre pseudo GOG — visible sur <strong>gog.com/u/votre-pseudo</strong>.';
+        document.getElementById('platform-user-id').placeholder = 'ex : votre-pseudo';
       } else {
-        // Mode : connexion GOG / Epic via identifiant manuel
+        // Mode : connexion Epic ou autre via identifiant manuel
         titleEl.textContent = 'Connecter ' + meta.name;
         btnText.textContent = 'Connecter';
         steamOauth.classList.add('hidden');
@@ -1788,8 +2304,7 @@
       document.getElementById('platform-success-wrapper').classList.remove('show');
       document.getElementById('platform-user-id').value = '';
       const apikeyInput = document.getElementById('platform-apikey');
-      apikeyInput.value = '';
-      apikeyInput.placeholder = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+      if (apikeyInput) apikeyInput.value = '';
 
       const modal = document.getElementById('platform-modal');
       const inner = modal.querySelector('.card');
@@ -1797,14 +2312,37 @@
       setTimeout(() => { modal.classList.remove('opacity-0'); inner.classList.remove('scale-95'); }, 10);
 
       if (mode === 'apikey') {
-        // Vérifier si une clé est déjà enregistrée pour afficher le bon placeholder
+        // Vérifier si une clé est déjà enregistrée pour afficher le bon état
+        const statusEl = document.getElementById('platform-apikey-status');
+        statusEl.classList.add('hidden');
+        statusEl.innerHTML = '';
+
         const token = localStorage.getItem('auth_token');
         if (token) {
           fetch('/api/users/me/steam-apikey', {
             headers: { 'Authorization': 'Bearer ' + token }
           }).then(r => r.json()).then(d => {
             if (d.has_key) {
-              apikeyInput.placeholder = '●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●● (clé enregistrée)';
+              apikeyInput.placeholder = 'Laisser vide pour conserver la clé actuelle';
+              statusEl.innerHTML = `
+                <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+                  <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                  <div>
+                    <span class="text-[12px] font-semibold text-emerald-400">Clé API active</span>
+                    <span class="text-[11px] text-emerald-400/60 ml-1.5">— liée exclusivement à ce compte</span>
+                  </div>
+                </div>`;
+              statusEl.classList.remove('hidden');
+              lucide.createIcons();
+            } else {
+              apikeyInput.placeholder = 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+              statusEl.innerHTML = `
+                <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/8 border border-amber-500/20">
+                  <i data-lucide="alert-circle" class="w-4 h-4 text-amber-400/70 shrink-0"></i>
+                  <span class="text-[12px] text-amber-400/70">Aucune clé configurée — clé serveur partagée utilisée</span>
+                </div>`;
+              statusEl.classList.remove('hidden');
+              lucide.createIcons();
             }
           }).catch(() => { });
         }
@@ -1870,6 +2408,9 @@
       succWrapper.classList.remove('show');
 
       if (!apikey) {
+        // En mode modification, si le champ est vide → fermer sans modifier
+        const conn = connectedPlatforms.find(c => c.platform === 'steam');
+        if (conn?.has_api_key) { closePlatformModal(); return; }
         errDiv.textContent = 'Veuillez saisir votre clé API Steam.';
         errWrapper.classList.add('show');
         return;
@@ -1923,11 +2464,47 @@
       const errWrapper = document.getElementById('platform-err-wrapper');
       const succWrapper = document.getElementById('platform-success-wrapper');
       const btn = e.target.querySelector('button[type="submit"]');
-      const userId = document.getElementById('platform-user-id').value.trim();
-      const apikey = document.getElementById('platform-apikey').value.trim();
+      const userId = document.getElementById('platform-user-id')?.value.trim() || '';
+      const apikey = document.getElementById('platform-apikey')?.value.trim() || '';
 
       errWrapper.classList.remove('show');
       succWrapper.classList.remove('show');
+
+      // Mode renouvellement token GOG uniquement
+      if (currentPlatformMode === 'update-token' && currentPlatformToConnect === 'gog') {
+        if (!apikey) {
+          errDiv.textContent = 'Veuillez coller le token GOG.';
+          errWrapper.classList.add('show');
+          return;
+        }
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Enregistrement\u2026';
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/platforms/gog/apikey', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ access_token: apikey })
+          });
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d.error || 'Erreur lors de la mise à jour du token.');
+          }
+          gogDataLoadedAt = 0; // Invalider le cache GOG
+          succWrapper.classList.add('show');
+          await loadPlatforms();
+          renderPlatformsSection();
+          setTimeout(() => closePlatformModal(), 1400);
+        } catch (err) {
+          errDiv.textContent = err.message;
+          errWrapper.classList.add('show');
+        } finally {
+          btn.innerHTML = orig;
+          btn.disabled = false;
+          lucide.createIcons();
+        }
+        return;
+      }
 
       if (!userId) {
         errDiv.textContent = 'Veuillez renseigner votre identifiant de plateforme.';
@@ -1936,14 +2513,27 @@
       }
 
       const orig = btn.innerHTML;
-      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Connexion\u2026';
+      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>V\u00e9rification\u2026';
       btn.disabled = true;
 
       try {
+        // Vérification et résolution du compte GOG avant connexion
+        let resolvedGogId = userId;
+        if (currentPlatformToConnect === 'gog') {
+          const verifyRes = await fetch(`/api/platforms/gog/verify?username=${encodeURIComponent(userId)}`);
+          const verifyData = await verifyRes.json().catch(() => ({}));
+          if (!verifyRes.ok || !verifyData.valid) {
+            throw new Error(verifyData.error || 'Compte GOG introuvable. V\u00e9rifiez votre nom d\'utilisateur.');
+          }
+          resolvedGogId = verifyData.user_id; // ID numérique résolu automatiquement
+        }
+
+        btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Connexion\u2026';
+
         const res = await fetch(`/api/platforms/${encodeURIComponent(currentPlatformToConnect)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ platform_user_id: userId, platform_username: null, access_token: apikey || null })
+          body: JSON.stringify({ platform_user_id: resolvedGogId, platform_username: null, access_token: null })
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
@@ -1984,71 +2574,254 @@
     async function syncPlatform(platform) {
       const token = localStorage.getItem('auth_token');
       if (!token) return;
+
       const btn = document.getElementById(`btn-sync-${platform}`);
+      const platformCard = btn ? btn.closest('.rounded-xl') : null;
+      let aura = null;
+
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<div class="w-3 h-3 border-2 border-brand/30 border-t-brand rounded-full animate-spin inline-block mr-1"></div>Sync\u2026';
+        btn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-brand/30 border-t-brand rounded-full animate-spin inline-block mr-1"></div>Sync\u2026';
+
+        // Aura sur l'icône plateforme
+        const iconContainer = platformCard ? platformCard.querySelector('.w-12.h-12') : null;
+        if (iconContainer) {
+          iconContainer.style.position = 'relative';
+          aura = document.createElement('div');
+          aura.className = 'sync-pulsing-aura';
+          iconContainer.appendChild(aura);
+          iconContainer.classList.add('shader-bloom');
+        }
       }
+
       try {
         const res = await fetch(`/api/platforms/${encodeURIComponent(platform)}/sync`, {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + token }
         });
         const data = await res.json().catch(() => ({}));
-        await loadPlatforms();
-        renderPlatformsSection();
+
         if (res.ok) {
-          showSyncResult(platform, data);
-          // Recharger le profil pour mettre à jour header + stats
-          const username = localStorage.getItem('auth_user');
-          if (username) {
-            const pRes = await fetch(`/api/users/${encodeURIComponent(username)}`);
-            if (pRes.ok) {
-              const d = await pRes.json();
-              renderHeader(d);
-              renderStats(d);
-              renderCompletedGames(d.completed_games || [], true);
-              renderGames(d.games, true);
-              renderAchievements(d.recent_achievements || [], true);
-              lucide.createIcons();
-            }
-          }
+          // Invalider le cache local pour forcer un rechargement frais après sync
+          if (platform === 'steam') steamDataLoadedAt = 0;
+          if (platform === 'gog') gogDataLoadedAt = 0;
+          // startLiveSyncAnimation gère le rechargement du profil et des plateformes
+          await startLiveSyncAnimation(platform, data);
         } else {
+          if (aura) aura.remove();
           const msgDiv = document.createElement('div');
           msgDiv.className = 'text-[12px] text-red-400 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 mb-3';
           msgDiv.textContent = data.error || 'Erreur lors de la synchronisation.';
           document.getElementById('settings-platforms-list')?.prepend(msgDiv);
           setTimeout(() => msgDiv.remove(), 5000);
+          await loadPlatforms();
+          renderPlatformsSection();
         }
-      } catch (_) {
+      } catch (err) {
+        console.error('Sync error:', err);
+        if (aura) aura.remove();
         await loadPlatforms();
         renderPlatformsSection();
       }
+    }
+
+    async function startLiveSyncAnimation(platform, syncData) {
+      // 1. Prepare UI
+      const username = localStorage.getItem('auth_user');
+      if (!username) return;
+
+      // Fetch fresh profile data
+      const pRes = await fetch(`/api/users/${encodeURIComponent(username)}`);
+      if (!pRes.ok) return;
+      const fullData = await pRes.json();
+      currentUserData = fullData;
+
+      // Update basic header info immediately (text/numbers)
+      renderHeader(fullData);
+
+      // Special Pie Chart Sync
+      const pieContainer = document.querySelector('#ph-stats > div:first-child');
+      if (pieContainer) {
+        const unlocked = fullData.total_achievements || 0;
+        const totalPossible = fullData.total_possible_achievements || 0;
+        const newPct = totalPossible > 0 ? (unlocked / totalPossible * 100) : 0;
+        const newOffset = 100 - newPct;
+
+        const circle = pieContainer.querySelector('circle:nth-child(2)');
+        if (circle) {
+          circle.style.setProperty('--target-offset', newOffset);
+          circle.classList.remove('chart-animate');
+          void circle.offsetWidth; // trigger reflow
+          circle.classList.add('chart-animate');
+        }
+
+        // Counter animation
+        const counter = pieContainer.querySelector('.num.text-[19px]');
+        if (counter) {
+          const startVal = parseInt(counter.textContent) || 0;
+          const endVal = unlocked;
+          animateValue(counter, startVal, endVal, 1500);
+        }
+
+        const pctLabel = pieContainer.querySelector('.text-emerald-400');
+        if (pctLabel) {
+          const startPct = parseFloat(pctLabel.dataset.value ?? pctLabel.textContent) || 0;
+          pctLabel.dataset.value = newPct;
+          animateValue(pctLabel, startPct, newPct, 1500, '% Complétion');
+        }
+      }
+
+      // 2. Recharger les données Steam (jeux + achievements récents)
+      await loadSteamData();
+
+      // Discover Trophies Animation (Incremental Reveal)
+      const achievementsContainer = document.getElementById('ph-achievements');
+      if (achievementsContainer) {
+        const listEl = achievementsContainer.querySelector('.flex.flex-col');
+        if (listEl && steamAchievementsCache.length) {
+          const recent = steamAchievementsCache.slice(0, 5);
+          listEl.innerHTML = ''; // Start clean for the discovery feel
+
+          for (let i = 0; i < recent.length; i++) {
+            await new Promise(r => setTimeout(r, 200 * i)); // Stagger discover
+            const rowHtml = buildAchievementRow(recent[i]);
+            const temp = document.createElement('div');
+            temp.innerHTML = rowHtml;
+            const row = temp.firstElementChild;
+            row.classList.add('trophy-pop');
+            listEl.appendChild(row);
+            lucide.createIcons();
+          }
+        }
+      }
+
+      // 3. Update remaining sections
+      renderStats(fullData); // Final sync to catch everything
+      renderCompletedGames(steamGamesCache, true);
+      renderGames(steamGamesCache, true);
+
+      // Recharger la liste des plateformes pour mettre à jour last_synced_at
+      await loadPlatforms();
+      renderPlatformsSection();
+
+      // Finally show result card in settings
+      showSyncResult(platform, syncData);
+    }
+
+    function animateValue(el, start, end, duration, suffix = '') {
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const current = progress * (end - start) + start;
+
+        if (suffix.includes('%')) {
+          el.innerHTML = `${current.toFixed(1)}% <span class="text-subtle/40 text-[13px] font-medium ml-1">${suffix.split('%')[1].trim()}</span>`;
+        } else {
+          el.textContent = Math.floor(current).toLocaleString('fr-FR');
+        }
+
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        }
+      };
+      window.requestAnimationFrame(step);
+    }
+
+    function buildAchievementRow(a) {
+      const rarityKey = a.rarity?.toLowerCase() || 'common';
+      const rarityColor = {
+        'common': 'emerald-400', 'rare': 'blue-400', 'epic': 'purple-400', 'legendary': 'amber-400', 'mythic': 'red-400'
+      }[rarityKey] || 'subtle';
+
+      const dt = a.unlocked_at
+        ? new Date(a.unlocked_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '—';
+
+      const icon = a.icon_url
+        ? `<img src="${escapeHtml(a.icon_url)}" alt="" class="w-full h-full object-cover"
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : '';
+      const iconFallback = `<div class="w-full h-full flex items-center justify-center text-2xl" style="${a.icon_url ? 'display:none' : ''}">🏅</div>`;
+
+      const rarityBadge = rarityKey === 'common' ? '' : `
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-${rarityColor}/10 border border-${rarityColor}/20 text-${rarityColor} text-[9px] font-bold uppercase tracking-wider">
+          ${RARITY_LABEL[a.rarity] || a.rarity}
+        </span>`;
+
+      return `
+      <div class="group flex gap-4 py-4 border-b border-white/[0.04] last:border-0">
+        <div class="relative shrink-0">
+          <div class="absolute inset-0 bg-${rarityColor}/20 blur-xl opacity-0 group-hover:opacity-60 transition-opacity rounded-xl"></div>
+          <div class="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-white/[0.03] flex items-center justify-center z-10">
+            ${icon}${iconFallback}
+          </div>
+          <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#111] border border-white/10 flex items-center justify-center z-20">
+            <i data-lucide="check" class="w-3 h-3 text-${rarityColor}"></i>
+          </div>
+        </div>
+
+        <div class="flex-1 min-w-0 flex flex-col justify-center gap-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[14px] font-bold text-white leading-tight tracking-tight">${escapeHtml(a.name)}</span>
+            ${rarityBadge}
+          </div>
+          ${a.description
+          ? `<div class="text-[12px] text-white/50 leading-snug line-clamp-2">${escapeHtml(a.description)}</div>`
+          : ''}
+          <div class="flex items-center gap-1.5 text-[11px] text-subtle/50 mt-0.5">
+            <i data-lucide="gamepad-2" class="w-3 h-3 shrink-0"></i>
+            <span class="truncate">${escapeHtml(a.game_title)}</span>
+          </div>
+        </div>
+
+        <div class="shrink-0 flex flex-col items-end justify-center gap-1.5">
+          <div class="text-[13px] font-bold text-white num">+${a.points}<span class="text-[10px] text-subtle/50 font-semibold ml-0.5">PTS</span></div>
+          <div class="flex items-center gap-1 text-[10px] text-subtle/40 font-medium uppercase tracking-wide">
+            <i data-lucide="calendar" class="w-3 h-3"></i>
+            ${dt}
+          </div>
+        </div>
+      </div>`;
     }
 
     function showSyncResult(platform, data) {
       document.getElementById('sync-result-card')?.remove();
       const card = document.createElement('div');
       card.id = 'sync-result-card';
-      card.className = 'mb-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[12px]';
+      card.className = 'mb-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[12px]';
       const platformName = platform.charAt(0).toUpperCase() + platform.slice(1);
+
+      // Indicateur de la clé utilisée
+      const keySource = data.api_key_source;
+      const keyBadge = (platform === 'steam' && keySource)
+        ? keySource === 'personal'
+          ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[9px] font-bold uppercase tracking-wide ml-auto">
+              <i data-lucide="key" class="w-2.5 h-2.5"></i>Clé personnelle
+            </span>`
+          : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/8 border border-white/10 text-white/40 text-[9px] font-medium uppercase tracking-wide ml-auto">
+              <i data-lucide="server" class="w-2.5 h-2.5"></i>Clé serveur
+            </span>`
+        : '';
+
       card.innerHTML = `
         <div class="flex items-center gap-2 mb-3">
-          <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+          <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0"></i>
           <span class="font-semibold text-emerald-400">Synchronisation ${escapeHtml(platformName)} terminée</span>
+          ${keyBadge}
         </div>
-        <div class="grid grid-cols-3 gap-3">
-          <div class="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-            <span class="num text-[20px] font-bold text-white">${data.games_synced ?? 0}</span>
-            <span class="text-subtle/60 text-[10px] uppercase tracking-wide">Jeux</span>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="flex flex-col items-center gap-0.5 p-2 rounded-lg bg-white/[0.04]">
+            <span class="num text-[18px] font-bold text-white">${data.games_synced ?? 0}</span>
+            <span class="text-white/30 text-[10px] uppercase tracking-wide">Jeux</span>
           </div>
-          <div class="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-            <span class="num text-[20px] font-bold text-brand">${data.total_achievements ?? 0}</span>
-            <span class="text-subtle/60 text-[10px] uppercase tracking-wide">Succès débloqués</span>
+          <div class="flex flex-col items-center gap-0.5 p-2 rounded-lg bg-white/[0.04]">
+            <span class="num text-[18px] font-bold text-brand">${data.total_achievements ?? 0}</span>
+            <span class="text-white/30 text-[10px] uppercase tracking-wide">Succès</span>
           </div>
-          <div class="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
-            <span class="num text-[20px] font-bold text-amber-400">${data.games_completed ?? 0}</span>
-            <span class="text-subtle/60 text-[10px] uppercase tracking-wide">100% complétés</span>
+          <div class="flex flex-col items-center gap-0.5 p-2 rounded-lg bg-white/[0.04]">
+            <span class="num text-[18px] font-bold text-amber-400">${data.games_completed ?? 0}</span>
+            <span class="text-white/30 text-[10px] uppercase tracking-wide">100%</span>
           </div>
         </div>
       `;
@@ -2061,72 +2834,137 @@
       }, 8000);
     }
 
+    // ── Steam Data Loading ────────────────────────────────────────────────────
+
+    async function loadSteamData(force = false) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      // Ne recharger que si le cache est périmé (ou si force=true après un sync)
+      if (!force && steamDataLoadedAt > 0 && (Date.now() - steamDataLoadedAt) < STEAM_CACHE_TTL) {
+        return;
+      }
+      const headers = { 'Authorization': 'Bearer ' + token };
+      const [gamesRes, achRes, completedRes] = await Promise.all([
+        fetch('/api/platforms/steam/games', { headers }).catch(() => null),
+        fetch('/api/platforms/steam/achievements/recent', { headers }).catch(() => null),
+        fetch('/api/platforms/steam/games/completed', { headers }).catch(() => null),
+      ]);
+      steamGamesCache = (gamesRes?.ok) ? await gamesRes.json().catch(() => []) : [];
+      steamAchievementsCache = (achRes?.ok) ? await achRes.json().catch(() => []) : [];
+      steamCompletedCache = (completedRes?.ok) ? await completedRes.json().catch(() => []) : [];
+      steamDataLoadedAt = Date.now();
+    }
+
+    // ── GOG Data Loading ──────────────────────────────────────────────────────
+
+    async function loadGogData(force = false) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+      if (!force && gogDataLoadedAt > 0 && (Date.now() - gogDataLoadedAt) < STEAM_CACHE_TTL) {
+        return;
+      }
+      const headers = { 'Authorization': 'Bearer ' + token };
+      const [gamesRes, achRes, completedRes] = await Promise.all([
+        fetch('/api/platforms/gog/games', { headers }).catch(() => null),
+        fetch('/api/platforms/gog/achievements/recent', { headers }).catch(() => null),
+        fetch('/api/platforms/gog/games/completed', { headers }).catch(() => null),
+      ]);
+      gogGamesCache = (gamesRes?.ok) ? await gamesRes.json().catch(() => []) : [];
+      gogAchievementsCache = (achRes?.ok) ? await achRes.json().catch(() => []) : [];
+      gogCompletedCache = (completedRes?.ok) ? await completedRes.json().catch(() => []) : [];
+      gogDataLoadedAt = Date.now();
+    }
+
     // ── Profile Loading ───────────────────────────────────────────────────────
+
+    // Nettoie le localStorage et redirige vers login
+    function clearSessionAndRedirect() {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      location.href = '/login.html';
+    }
 
     async function loadProfile() {
       const token = localStorage.getItem('auth_token');
-      const authUser = localStorage.getItem('auth_user');
+      let authUser = localStorage.getItem('auth_user');
+
+      // ── Validation du token au démarrage ─────────────────────────────────────
+      // Si un token est présent, on le valide systématiquement via /api/auth/me
+      // pour s'assurer qu'il correspond à un compte actif en base.
+      if (token) {
+        try {
+          const meRes = await fetch('/api/auth/me', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            // Resynchroniser auth_user si décalé (ex: après migration)
+            if (meData.username !== authUser) {
+              localStorage.setItem('auth_user', meData.username);
+              authUser = meData.username;
+            }
+          } else if (meRes.status >= 400 && meRes.status < 500) {
+            // Token invalide, expiré ou compte supprimé → déconnexion immédiate
+            clearSessionAndRedirect();
+            return;
+          }
+          // 5xx → serveur indisponible, on continue sans invalider la session
+        } catch {
+          // Erreur réseau → on continue sans bloquer (pas de déconnexion forcée)
+        }
+      }
 
       if (token && authUser) {
-        const monEspace = document.getElementById('nav-mon-espace');
-        if (monEspace) {
-          monEspace.classList.remove('auth-hidden');
-          const viewingUser = new URLSearchParams(window.location.search).get('u') || authUser;
-          if (viewingUser === authUser) {
-            monEspace.className = "text-white font-semibold hidden sm:block cursor-default";
-            monEspace.removeAttribute('href');
-          } else {
-            monEspace.className = "text-[13px] font-medium text-subtle hover:text-white transition-colors hidden sm:block";
-            monEspace.setAttribute('href', '/profile.html');
-          }
-        }
+        document.querySelectorAll('.auth-hidden').forEach(link => link.classList.remove('auth-hidden', 'hidden'));
 
         const loginBtn = document.getElementById('nav-login');
         if (loginBtn) loginBtn.classList.add('hidden');
 
+        const loginBtnMobile = document.getElementById('nav-login-mobile');
+        if (loginBtnMobile) loginBtnMobile.classList.add('hidden');
+
         const logoutBtn = document.getElementById('nav-logout');
         if (logoutBtn) logoutBtn.classList.remove('hidden');
+
+        const logoutBtnMobile = document.getElementById('nav-logout-mobile');
+        if (logoutBtnMobile) logoutBtnMobile.classList.remove('hidden');
+
+        const viewingUser = new URLSearchParams(window.location.search).get('u') || authUser;
+        const isMyProfile = viewingUser === authUser;
+
+        const monEspace = document.getElementById('nav-mon-espace');
+        if (monEspace) {
+          if (isMyProfile) {
+            monEspace.classList.add('text-white', 'font-semibold', 'cursor-default', 'pointer-events-none');
+            monEspace.classList.remove('hover:text-white', 'transition-colors');
+          } else {
+            monEspace.classList.remove('text-white', 'font-semibold', 'cursor-default', 'pointer-events-none');
+            monEspace.classList.add('hover:text-white', 'transition-colors');
+          }
+        }
+
+        const monEspaceMobile = document.getElementById('nav-mon-espace-mobile');
+        if (monEspaceMobile) {
+          if (isMyProfile) {
+            monEspaceMobile.classList.add('text-brand', 'font-semibold', 'cursor-default', 'pointer-events-none');
+            monEspaceMobile.classList.remove('hover:text-white');
+          } else {
+            monEspaceMobile.classList.remove('text-brand', 'font-semibold', 'cursor-default', 'pointer-events-none');
+            monEspaceMobile.classList.add('hover:text-white');
+          }
+        }
       }
 
       let username = new URLSearchParams(window.location.search).get('u');
 
-      // Pas de paramètre → profil propre si connecté
+      // Pas de paramètre → rediriger vers son propre profil
       if (!username) {
-        if (!token) {
+        if (!token || !authUser) {
           location.href = '/login.html';
           return;
         }
-        try {
-          const res = await fetch('/api/auth/me', {
-            headers: { 'Authorization': 'Bearer ' + token }
-          });
-          if (!res.ok) {
-            if (res.status === 401 || res.status === 403) {
-              // Token invalide ou expiré → déconnexion
-              localStorage.removeItem('auth_token');
-              localStorage.removeItem('auth_user');
-              location.href = '/login.html';
-            } else {
-              // Erreur serveur (502, 500…) → ne pas déconnecter, afficher l'erreur
-              document.getElementById('profile-loading').classList.add('hidden');
-              const e = document.getElementById('profile-error');
-              e.classList.remove('hidden'); e.classList.add('flex');
-              document.getElementById('error-msg').textContent = 'Serveur indisponible. Veuillez réessayer.';
-              lucide.createIcons();
-            }
-            return;
-          }
-          const me = await res.json();
-          // Rediriger vers son propre profil public
-          location.replace('/profile.html?u=' + encodeURIComponent(me.username));
-        } catch {
-          // Erreur réseau → ne pas rediriger vers /login (évite la boucle infinie)
-          document.getElementById('profile-loading').classList.add('hidden');
-          const e = document.getElementById('profile-error');
-          e.classList.remove('hidden'); e.classList.add('flex');
-          document.getElementById('error-msg').textContent = 'Impossible de joindre le serveur. Vérifiez votre connexion.';
-          lucide.createIcons();
-        }
+        // authUser est déjà validé et synchronisé ci-dessus
+        location.replace('/profile.html?u=' + encodeURIComponent(authUser));
         return;
       }
       document.title = (username || 'Profil').replace(/[<>]/g, '') + ' — Glorious Trophée';
@@ -2142,12 +2980,57 @@
         c.classList.remove('hidden'); c.classList.add('flex');
 
         const isMe = d.username === localStorage.getItem('auth_user');
-        renderHeader(d);
+
+        // Rendu immédiat du contenu statique (pas de réseau)
+        renderHeader(d, isMe);
         renderStats(d);
-        renderCompletedGames(d.completed_games || [], isMe);
-        renderGames(d.games, isMe);
-        renderAchievements(d.recent_achievements || [], isMe);
+        renderChallenges(d);
+        renderCompletedGames([], isMe, true);   // squelette de chargement
+        renderGames([], isMe);
+        renderAchievements([], isMe, true);     // squelette de chargement
         lucide.createIcons();
+
+        if (isMe) {
+          // Heartbeat sans attendre
+          const _sendHb = () => {
+            const tok = localStorage.getItem('auth_token');
+            if (!tok) return;
+            fetch('/api/users/me/heartbeat', {
+              method: 'PATCH',
+              headers: { 'Authorization': 'Bearer ' + tok }
+            }).catch(() => { });
+          };
+          _sendHb();
+          setInterval(_sendHb, 5 * 60 * 1000);
+
+          // Chargement parallèle des données Steam + GOG + plateformes sans bloquer l'affichage
+          Promise.all([loadSteamData(), loadGogData(), loadPlatforms()]).then(() => {
+            renderHeader(d, isMe); // Re-render avec infos clé API
+            // Fusionner les jeux Steam et GOG
+            const allGames = [...steamGamesCache, ...gogGamesCache.map(g => ({
+              name: g.title, appid: null, platform: 'gog',
+              platform_game_id: g.platform_game_id,
+              completion_pct: g.completion_pct,
+              achievements_unlocked: g.achievements_unlocked,
+              achievements_total: g.achievements_total,
+            }))];
+            const allAchievements = [...steamAchievementsCache, ...gogAchievementsCache.map(a => ({
+              name: a.display_name, description: a.description,
+              icon_url: a.image_url, unlocked_at: a.unlocked_at,
+              game_title: a.game_name, rarity: a.rarity,
+              points: 0, game_appid: null,
+            }))];
+            const allCompleted = [...steamCompletedCache, ...gogCompletedCache.map(g => ({
+              name: g.title, appid: null, platform: 'gog',
+              platform_game_id: g.platform_game_id,
+              achievements_total: g.achievements_total,
+            }))];
+            renderGames(allGames, isMe);
+            renderAchievements(allAchievements, isMe);
+            renderCompletedGames(allCompleted, isMe);
+            lucide.createIcons();
+          });
+        }
 
         // Open Plateformes tab after Steam OpenID callback
         if (window.__openPlatformsTabOnLoad && isMe) {
@@ -2274,6 +3157,7 @@
     // Tab switching in settings modal
     document.getElementById('tab-btn-profile').addEventListener('click', () => switchSettingsTab('profile'));
     document.getElementById('tab-btn-platforms').addEventListener('click', () => switchSettingsTab('platforms'));
+    document.getElementById('btn-delete-account').addEventListener('click', deleteAccount);
 
     // Event delegation for platform action buttons (connect / sync / disconnect)
     document.getElementById('settings-tab-platforms').addEventListener('click', function (e) {
@@ -2283,6 +3167,7 @@
       const platform = btn.dataset.platform;
       if (action === 'connect') openPlatformModal(platform);
       else if (action === 'update-apikey') openPlatformModal(platform, 'apikey');
+      else if (action === 'update-token') openPlatformModal(platform, 'update-token');
       else if (action === 'sync') syncPlatform(platform);
       else if (action === 'disconnect') confirmDisconnect(platform);
     });
@@ -2780,6 +3665,31 @@
       // Open settings on the Plateformes tab after profile loads
       window.__openPlatformsTabOnLoad = steamOk ? 'ok' : (steamErr || 'error');
     })();
+
+    // Gestion du menu mobile
+    const mobileBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (mobileBtn && mobileMenu) {
+      mobileBtn.addEventListener('click', () => {
+        const isHidden = mobileMenu.classList.contains('hidden');
+        if (isHidden) {
+          mobileMenu.classList.remove('hidden');
+          setTimeout(() => {
+            mobileMenu.classList.remove('opacity-0', '-translate-y-2');
+            mobileMenu.classList.add('opacity-100', 'translate-y-0');
+          }, 10);
+          mobileBtn.innerHTML = '<i data-lucide="x" class="w-5 h-5"></i>';
+        } else {
+          mobileMenu.classList.remove('opacity-100', 'translate-y-0');
+          mobileMenu.classList.add('opacity-0', '-translate-y-2');
+          setTimeout(() => {
+            mobileMenu.classList.add('hidden');
+          }, 200);
+          mobileBtn.innerHTML = '<i data-lucide="menu" class="w-5 h-5"></i>';
+        }
+        lucide.createIcons();
+      });
+    }
 
     loadProfile();
   </script>

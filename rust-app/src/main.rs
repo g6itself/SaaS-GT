@@ -22,6 +22,11 @@ async fn main() -> std::io::Result<()> {
     // Connexion a la base de donnees
     let pool = db::create_pool().await;
 
+    // Cache Steam en mémoire (partagé entre tous les workers)
+    let steam_cache = std::sync::Arc::new(std::sync::Mutex::new(
+        achievement_tracker::server::api::platforms::SteamCache::new(),
+    ));
+
     // Configuration Leptos
     let conf = get_configuration(None).unwrap();
     let addr = conf.leptos_options.site_addr;
@@ -46,6 +51,7 @@ async fn main() -> std::io::Result<()> {
             // Donnees partagees
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(leptos_options.to_owned()))
+            .app_data(web::Data::from(steam_cache.clone()))
             // API REST
             .service(
                 web::scope("/api")

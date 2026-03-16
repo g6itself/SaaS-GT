@@ -37,6 +37,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # ─── HTTP client pour APIs gaming et requêtes client ─────────────────────────
 reqwest = { version = "0.12", features = ["json"] }
+urlencoding = "2"
 
 # ─── Authentification (server only) ──────────────────────────────────────────
 jsonwebtoken = { version = "9", optional = true }

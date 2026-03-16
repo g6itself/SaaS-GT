@@ -28,10 +28,11 @@ app.use(helmet({
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'development' ? null : [],
     },
   },
   crossOriginEmbedderPolicy: false,
-  hsts: { maxAge: 31536000, includeSubDomains: true },
+  hsts: process.env.NODE_ENV === 'development' ? false : { maxAge: 31536000, includeSubDomains: true },
 }));
 
 app.use(cors({
@@ -72,6 +73,9 @@ app.use(createProxyMiddleware({
   timeout: 30000,
   proxyTimeout: 30000,
   on: {
+    proxyReq: (proxyReq, req, _res) => {
+      console.log(`[PROXY] ${req.method} ${req.url}`);
+    },
     error: (_err, _req, res) => {
       if (!res.headersSent) {
         res.writeHead(502, { 'Content-Type': 'application/json' });
