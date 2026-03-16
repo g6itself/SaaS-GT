@@ -416,33 +416,18 @@ pub async fn sync_steam_achievements(
     for game in &owned_games {
         // 2. Upsert le jeu dans la BDD (clé de jointure uniquement)
         let normalized_title = game.name.to_lowercase();
-        let game_row = sqlx::query_as::<_, (Uuid,)>(
+        let (game_id,) = sqlx::query_as::<_, (Uuid,)>(
             r#"
             INSERT INTO games (title, normalized_title)
             VALUES ($1, $2)
-            ON CONFLICT DO NOTHING
+            ON CONFLICT (normalized_title) DO UPDATE SET title = EXCLUDED.title
             RETURNING id
             "#,
         )
         .bind(&game.name)
         .bind(&normalized_title)
-        .fetch_optional(pool)
+        .fetch_one(pool)
         .await?;
-
-        let game_id = if let Some((id,)) = game_row {
-            id
-        } else {
-            match sqlx::query_as::<_, (Uuid,)>(
-                "SELECT id FROM games WHERE normalized_title = $1",
-            )
-            .bind(&normalized_title)
-            .fetch_optional(pool)
-            .await?
-            {
-                Some((id,)) => id,
-                None => continue,
-            }
-        };
 
         // 3. Upsert game_platform_ids
         let gpi_row = sqlx::query_as::<_, (Uuid,)>(
@@ -533,7 +518,29 @@ pub async fn sync_steam_achievements(
         games_synced += 1;
     }
 
-    // 6. Recalcul bulk des totaux utilisateur (achievements, jeux, points)
+    // 6. Snapshot du rang AVANT mise à jour des points (si snapshot absent ou >24h)
+    // Le snapshot capture le rang "avant ce sync" pour comparaison ultérieure.
+    sqlx::query(
+        r#"
+        UPDATE users u SET
+            rank_snapshot    = ranked.rank_pts,
+            rank_snapshot_at = NOW()
+        FROM (
+            SELECT id, RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts
+            FROM users
+            WHERE is_active = true
+        ) ranked
+        WHERE u.id = $1
+          AND ranked.id = $1
+          AND (u.rank_snapshot_at IS NULL OR u.rank_snapshot_at < NOW() - INTERVAL '24 hours')
+        "#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await
+    .ok();
+
+    // 7. Recalcul bulk des totaux utilisateur (achievements, jeux, points)
     // Formule points : 10 pts par achievement débloqué + 50 pts par jeu complété à 100%
     let final_stats = sqlx::query_as::<_, (i64, i64)>(
         r#"
@@ -572,27 +579,6 @@ pub async fn sync_steam_achievements(
     .ok()
     .flatten()
     .unwrap_or((0, 0));
-
-    // Mettre à jour le snapshot de rang si jamais initialisé ou si >24h
-    sqlx::query(
-        r#"
-        UPDATE users u SET
-            rank_snapshot    = ranked.rank_pts,
-            rank_snapshot_at = NOW()
-        FROM (
-            SELECT id, RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts
-            FROM users
-            WHERE is_active = true
-        ) ranked
-        WHERE u.id = $1
-          AND ranked.id = $1
-          AND (u.rank_snapshot_at IS NULL OR u.rank_snapshot_at < NOW() - INTERVAL '24 hours')
-        "#,
-    )
-    .bind(user_id)
-    .execute(pool)
-    .await
-    .ok();
 
     Ok(SyncStats {
         games_synced,

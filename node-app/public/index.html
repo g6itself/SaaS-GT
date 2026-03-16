@@ -1013,22 +1013,32 @@
       const circumference = 2 * Math.PI * ringRadius;
       const offset = circumference - (e.completion_avg / 100 * circumference);
 
-      // Rank Movement Logic (Mock)
-      const moveSeed = (e.rank + (e.display_name || e.username).length) % 3;
+      // Icône de mouvement de rang basée sur rank_snapshot (réel, pas mock)
       let movHtml = '';
-      if (moveSeed === 0) {
-        movHtml = `
-          <div class="flex items-center justify-center p-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 group-hover:bg-emerald-500/10 transition-colors">
-            <i data-lucide="trending-up" class="w-3.5 h-3.5 text-emerald-400"></i>
-          </div>`;
-      } else if (moveSeed === 1) {
-        movHtml = `
-          <div class="flex items-center justify-center p-1.5 rounded-lg bg-red-500/5 border border-red-500/20 group-hover:bg-red-500/10 transition-colors">
-            <i data-lucide="trending-down" class="w-3.5 h-3.5 text-red-400"></i>
-          </div>`;
+      const snapshotAge = e.rank_snapshot_at ? (Date.now() - new Date(e.rank_snapshot_at).getTime()) : null;
+      const snapshotFresh = snapshotAge !== null && snapshotAge <= 24 * 3600 * 1000;
+      if (snapshotFresh && e.rank_snapshot !== null && e.rank_snapshot !== undefined) {
+        const diff = e.rank_snapshot - e.rank; // positif = monté (rang plus petit = mieux)
+        if (diff > 0) {
+          movHtml = `
+            <div class="flex items-center justify-center p-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20 group-hover:bg-emerald-500/10 transition-colors" title="+${diff} place${diff > 1 ? 's' : ''}">
+              <i data-lucide="trending-up" class="w-3.5 h-3.5 text-emerald-400"></i>
+            </div>`;
+        } else if (diff < 0) {
+          movHtml = `
+            <div class="flex items-center justify-center p-1.5 rounded-lg bg-red-500/5 border border-red-500/20 group-hover:bg-red-500/10 transition-colors" title="${diff} place${Math.abs(diff) > 1 ? 's' : ''}">
+              <i data-lucide="trending-down" class="w-3.5 h-3.5 text-red-400"></i>
+            </div>`;
+        } else {
+          movHtml = `
+            <div class="flex items-center justify-center p-1.5 rounded-lg bg-white/5 border border-white/5 opacity-40" title="Stable">
+              <i data-lucide="minus" class="w-3.5 h-3.5 text-white"></i>
+            </div>`;
+        }
       } else {
+        // Pas de snapshot ou snapshot > 24h → icône grise neutre
         movHtml = `
-          <div class="flex items-center justify-center p-1.5 rounded-lg bg-white/5 border border-white/5 opacity-40">
+          <div class="flex items-center justify-center p-1.5 rounded-lg bg-white/5 border border-white/5 opacity-30" title="Pas de données récentes">
             <i data-lucide="minus" class="w-3.5 h-3.5 text-white"></i>
           </div>`;
       }

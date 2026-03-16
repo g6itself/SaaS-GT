@@ -1230,24 +1230,32 @@
         modal.querySelector('.card').classList.remove('scale-95');
       }, 10);
       if (currentUserData) {
-        // Normaliser les jeux Steam vers le format attendu par la bibliothèque
-        libraryState.games = steamGamesCache.map(g => ({
-          title: g.name,
-          platform: 'steam',
-          platform_game_id: String(g.appid),
-          cover_image_url: g.img_icon_url || null,
-          completion_pct: g.completion_pct || 0,
-          achievements_unlocked: g.achievements_unlocked || 0,
-          achievements_total: g.achievements_total || 0,
-          playtime_minutes: g.playtime_minutes || 0,
-        }));
         libraryState.connectedPlatforms = (currentUserData.platforms || []).map(p => p.platform).filter(Boolean);
         libraryState.tab = 'platforms';
         libraryState.selectedPlatform = libraryState.connectedPlatforms[0] || null;
         document.getElementById('library-search').value = '';
-        lucide.createIcons();
-        renderLibrarySidebar();
-        renderLibraryGames();
+
+        const populate = () => {
+          const sample = steamGamesCache.find(g => g.achievements_total > 0);
+          console.debug('[Library] steamGamesCache sample avec succès:', sample);
+          libraryState.games = steamGamesCache.map(g => ({
+            title: g.name,
+            platform: 'steam',
+            platform_game_id: String(g.appid),
+            cover_image_url: g.img_icon_url || null,
+            completion_pct: g.completion_pct ?? 0,
+            achievements_unlocked: g.achievements_unlocked ?? 0,
+            achievements_total: g.achievements_total ?? 0,
+            playtime_minutes: g.playtime_minutes ?? 0,
+          }));
+          renderLibrarySidebar();
+          renderLibraryGames();
+          lucide.createIcons();
+        };
+
+        // Forcer un rechargement frais des données Steam pour la bibliothèque
+        steamDataLoadedAt = 0;
+        loadSteamData().then(populate);
       }
     }
 
@@ -1348,17 +1356,18 @@
               <div class="text-[13px] font-bold text-white truncate group-hover:text-brand transition-colors">${escapeHtml(g.title)}</div>
               <div class="flex items-center justify-between text-[11px] text-subtle/60 font-bold">
                 <span class="flex items-center gap-1">
-                  <i data-lucide="award" class="w-3 h-3"></i>
-                  <span class="num">${g.achievements_unlocked}/${g.achievements_total}</span>
+                  <i data-lucide="award" class="w-3 h-3 ${g.achievements_total > 0 ? 'text-brand/70' : ''}"></i>
+                  <span class="num">${g.achievements_total > 0 ? `${g.achievements_unlocked}/${g.achievements_total}` : '—'}</span>
                 </span>
                 <span class="flex items-center gap-1">
                   <i data-lucide="clock" class="w-3 h-3"></i>
                   ${fmtTime(g.playtime_minutes)}
                 </span>
               </div>
+              ${g.achievements_total > 0 ? `
               <div class="h-0.5 bg-white/[0.05] rounded-full overflow-hidden mt-0.5">
-                <div class="h-full bg-brand" style="width:${pct}%"></div>
-              </div>
+                <div class="h-full ${pct === '100' ? 'bg-emerald-400' : 'bg-brand'}" style="width:${pct}%"></div>
+              </div>` : ''}
             </div>
           </div>`;
       }).join('');
@@ -1428,6 +1437,8 @@
         platform_game_id: g.platform_game_id || (g.appid ? String(g.appid) : ''),
         cover_image_url: g.cover_image_url || g.img_icon_url || null,
         completion_pct: g.completion_pct || 0,
+        achievements_unlocked: g.achievements_unlocked ?? null,
+        achievements_total: g.achievements_total ?? null,
       }));
 
       if (!normalized.length) { el.innerHTML = ''; return; }
@@ -1456,10 +1467,19 @@
             </div>
           </div>
           <div class="px-3 py-1 flex items-center justify-between bg-white/[0.02]">
-            <span class="text-[9px] text-subtle/60 capitalize">${escapeHtml(g.platform)}</span>
+            <span class="flex items-center gap-1 text-[9px] text-subtle/50">
+              <i data-lucide="award" class="w-2.5 h-2.5"></i>
+              <span class="num">${g.achievements_unlocked !== null && g.achievements_total !== null
+                ? `${g.achievements_unlocked}/${g.achievements_total}`
+                : g.achievements_total !== null ? `?/${g.achievements_total}` : '—'
+              }</span>
+            </span>
             ${pct === '100'
             ? `<i data-lucide="check-circle" class="w-3 h-3 text-emerald-400"></i>`
             : `<span class="num text-[9px] font-bold text-brand">${pct}%</span>`}
+          </div>
+          <div class="h-0.5 bg-white/[0.05]">
+            <div class="h-full bg-brand" style="width:${pct}%"></div>
           </div>
         </div>`;
       };

@@ -12,6 +12,8 @@ struct LeaderboardEntry {
     profile_image_url: Option<String>,
     total_achievements: i64,
     completion_avg: f64,
+    rank_snapshot: Option<i64>,
+    rank_snapshot_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
@@ -31,7 +33,9 @@ async fn get_leaderboard(pool: web::Data<PgPool>) -> HttpResponse {
             u.league::TEXT AS league,
             u.profile_image_url,
             COALESCE(lc.total_achievements, 0)::BIGINT AS total_achievements,
-            COALESCE(lc.completion_avg, 0.00)::FLOAT8 AS completion_avg
+            COALESCE(lc.completion_avg, 0.00)::FLOAT8 AS completion_avg,
+            u.rank_snapshot,
+            u.rank_snapshot_at
         FROM users u
         LEFT JOIN leaderboard_cache lc ON lc.user_id = u.id
         WHERE u.is_active = true

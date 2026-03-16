@@ -273,7 +273,27 @@ pub async fn sync_gog_achievements(
         achievements_synced += unlocked;
     }
 
-    // 7. Recalculer les totaux utilisateur
+    // 7. Snapshot du rang AVANT mise à jour des points (si absent ou >24h)
+    sqlx::query(
+        r#"
+        UPDATE users u SET
+            rank_snapshot    = ranked.rank_pts,
+            rank_snapshot_at = NOW()
+        FROM (
+            SELECT id, RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts
+            FROM users WHERE is_active = true
+        ) ranked
+        WHERE u.id = $1
+          AND ranked.id = $1
+          AND (u.rank_snapshot_at IS NULL OR u.rank_snapshot_at < NOW() - INTERVAL '24 hours')
+        "#,
+    )
+    .bind(user_id)
+    .execute(pool)
+    .await
+    .ok();
+
+    // 8. Recalculer les totaux utilisateur
     let final_stats = sqlx::query_as::<_, (i64, i64)>(
         r#"
         UPDATE users
@@ -305,26 +325,6 @@ pub async fn sync_gog_achievements(
     .ok()
     .flatten()
     .unwrap_or((0, 0));
-
-    // 8. Mettre à jour le snapshot de rang si >24h
-    sqlx::query(
-        r#"
-        UPDATE users u SET
-            rank_snapshot    = ranked.rank_pts,
-            rank_snapshot_at = NOW()
-        FROM (
-            SELECT id, RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts
-            FROM users WHERE is_active = true
-        ) ranked
-        WHERE u.id = $1
-          AND ranked.id = $1
-          AND (u.rank_snapshot_at IS NULL OR u.rank_snapshot_at < NOW() - INTERVAL '24 hours')
-        "#,
-    )
-    .bind(user_id)
-    .execute(pool)
-    .await
-    .ok();
 
     tracing::info!(
         "GOG sync terminé pour {} : {} jeux, {} achievements",
