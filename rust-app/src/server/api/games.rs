@@ -1,7 +1,7 @@
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 
-use crate::server::auth::{extract_token_from_header, validate_token};
+use crate::server::auth_extractor::AuthUser;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -25,13 +25,10 @@ struct SearchParams {
 
 async fn list_games(
     pool: web::Data<PgPool>,
-    req: HttpRequest,
+    auth: AuthUser,
     query: web::Query<PaginationParams>,
 ) -> HttpResponse {
-    let user_id = match get_user_id(&req) {
-        Ok(id) => id,
-        Err(resp) => return resp,
-    };
+    let user_id = auth.user_id;
 
     let page = query.page.unwrap_or(1).max(1);
     let per_page = query.per_page.unwrap_or(20).min(100);
@@ -150,13 +147,10 @@ async fn search_games(
 
 async fn get_game(
     pool: web::Data<PgPool>,
-    req: HttpRequest,
+    auth: AuthUser,
     path: web::Path<uuid::Uuid>,
 ) -> HttpResponse {
-    let user_id = match get_user_id(&req) {
-        Ok(id) => id,
-        Err(resp) => return resp,
-    };
+    let user_id = auth.user_id;
     let game_id = path.into_inner();
 
     let game = sqlx::query_as::<_, (uuid::Uuid, String)>(
@@ -213,23 +207,3 @@ async fn get_game(
     }
 }
 
-fn get_user_id(req: &HttpRequest) -> Result<uuid::Uuid, HttpResponse> {
-    let auth_header = req
-        .headers()
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(|| {
-            HttpResponse::Unauthorized().json(serde_json::json!({"error": "Token manquant"}))
-        })?;
-
-    let token = extract_token_from_header(auth_header).ok_or_else(|| {
-        HttpResponse::Unauthorized().json(serde_json::json!({"error": "Format de token invalide"}))
-    })?;
-
-    let claims = validate_token(token).map_err(|_| {
-        HttpResponse::Unauthorized()
-            .json(serde_json::json!({"error": "Token expire ou invalide"}))
-    })?;
-
-    Ok(claims.sub)
-}

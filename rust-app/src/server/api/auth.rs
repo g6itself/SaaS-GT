@@ -3,9 +3,9 @@ use sqlx::PgPool;
 use std::collections::HashMap;
 
 use crate::models::user::{AuthResponse, LoginRequest, RegisterRequest, UserPublic};
-use crate::server::auth::{
-    create_token, extract_token_from_header, hash_password, validate_token, verify_password,
-};
+use crate::server::auth::{create_token, hash_password, verify_password};
+use crate::server::auth_extractor::AuthUser;
+use crate::server::rate_limit::{client_ip, RateLimiter};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -20,12 +20,21 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 // ── Validation helpers ────────────────────────────────────────────────────────
 
 fn is_valid_email(email: &str) -> bool {
+    if email.len() > 254 {
+        return false;
+    }
     let parts: Vec<&str> = email.splitn(2, '@').collect();
-    if parts.len() != 2 || parts[0].is_empty() {
+    if parts.len() != 2 || parts[0].is_empty() || parts[0].len() > 64 {
         return false;
     }
     let domain = parts[1];
-    domain.contains('.') && !domain.starts_with('.') && !domain.ends_with('.') && domain.len() > 2
+    // Domaine : doit avoir un point, sans point en début/fin, longueur min 4 (a.bc)
+    if !domain.contains('.') || domain.starts_with('.') || domain.ends_with('.') || domain.len() < 4 {
+        return false;
+    }
+    // Partie locale : chars autorisés (RFC 5321 simplifié)
+    let local = parts[0];
+    local.chars().all(|c| c.is_alphanumeric() || ".!#$%&'*+/=?^_`{|}~-".contains(c))
 }
 
 fn is_valid_password(password: &str) -> (bool, bool) {
@@ -98,7 +107,17 @@ async fn check_username(
 
 // ── POST /api/auth/register ───────────────────────────────────────────────────
 
-async fn register(pool: web::Data<PgPool>, body: web::Json<RegisterRequest>) -> HttpResponse {
+async fn register(
+    pool: web::Data<PgPool>,
+    limiter: web::Data<RateLimiter>,
+    req: HttpRequest,
+    body: web::Json<RegisterRequest>,
+) -> HttpResponse {
+    if !limiter.check(&client_ip(&req)) {
+        return HttpResponse::TooManyRequests().json(serde_json::json!({
+            "error": "Trop de tentatives d'inscription. Réessayez dans quelques minutes."
+        }));
+    }
     // ── Validation email ──
     if !is_valid_email(&body.email) {
         return HttpResponse::BadRequest().json(serde_json::json!({
@@ -209,7 +228,17 @@ async fn register(pool: web::Data<PgPool>, body: web::Json<RegisterRequest>) -> 
 
 // ── POST /api/auth/login ──────────────────────────────────────────────────────
 
-async fn login(pool: web::Data<PgPool>, body: web::Json<LoginRequest>) -> HttpResponse {
+async fn login(
+    pool: web::Data<PgPool>,
+    limiter: web::Data<RateLimiter>,
+    req: HttpRequest,
+    body: web::Json<LoginRequest>,
+) -> HttpResponse {
+    if !limiter.check(&client_ip(&req)) {
+        return HttpResponse::TooManyRequests().json(serde_json::json!({
+            "error": "Trop de tentatives de connexion. Réessayez dans quelques minutes."
+        }));
+    }
     let result = sqlx::query_as::<_, (uuid::Uuid, String, String, String, Option<String>, Option<String>)>(
         "SELECT id, email, username, password_hash, display_name, profile_image_url AS avatar_url FROM users WHERE email = $1 AND is_active = true",
     )
@@ -260,40 +289,8 @@ async fn login(pool: web::Data<PgPool>, body: web::Json<LoginRequest>) -> HttpRe
 
 // ── GET /api/auth/me ──────────────────────────────────────────────────────────
 
-async fn me(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
-    let auth_header = match req.headers().get("Authorization") {
-        Some(h) => match h.to_str() {
-            Ok(s) => s.to_string(),
-            Err(_) => {
-                return HttpResponse::Unauthorized().json(serde_json::json!({
-                    "error": "Token invalide"
-                }))
-            }
-        },
-        None => {
-            return HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Token manquant"
-            }))
-        }
-    };
-
-    let token = match extract_token_from_header(&auth_header) {
-        Some(t) => t,
-        None => {
-            return HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Format de token invalide"
-            }))
-        }
-    };
-
-    let claims = match validate_token(token) {
-        Ok(c) => c,
-        Err(_) => {
-            return HttpResponse::Unauthorized().json(serde_json::json!({
-                "error": "Token expire ou invalide"
-            }))
-        }
-    };
+async fn me(pool: web::Data<PgPool>, auth: AuthUser) -> HttpResponse {
+    let claims = auth.claims;
 
     let result = sqlx::query_as::<_, (uuid::Uuid, String, String, Option<String>, Option<String>)>(
         "SELECT id, email, username, display_name, profile_image_url AS avatar_url FROM users WHERE id = $1 AND is_active = true",

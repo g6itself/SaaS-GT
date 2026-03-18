@@ -9,7 +9,7 @@ async fn main() -> std::io::Result<()> {
     use leptos_meta::MetaTags;
 
     use achievement_tracker::app::*;
-    use achievement_tracker::server::{api, db};
+    use achievement_tracker::server::{api, db, rate_limit::RateLimiter};
 
     dotenvy::dotenv().ok();
 
@@ -26,6 +26,9 @@ async fn main() -> std::io::Result<()> {
     let steam_cache = std::sync::Arc::new(std::sync::Mutex::new(
         achievement_tracker::server::api::platforms::SteamCache::new(),
     ));
+
+    // Rate limiter pour les endpoints d'authentification : 10 req/min par IP
+    let auth_limiter = std::sync::Arc::new(RateLimiter::new(10, 60));
 
     // Configuration Leptos
     let conf = get_configuration(None).unwrap();
@@ -52,6 +55,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(leptos_options.to_owned()))
             .app_data(web::Data::from(steam_cache.clone()))
+            .app_data(web::Data::from(auth_limiter.clone()))
             // API REST
             .service(
                 web::scope("/api")

@@ -1,9 +1,9 @@
-use actix_web::{web, HttpRequest, HttpResponse};
+use actix_web::{web, HttpResponse};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
-use crate::server::auth::{extract_token_from_header, validate_token};
+use crate::server::auth_extractor::AuthUser;
 
 // ── Structs ───────────────────────────────────────────────────────────────────
 
@@ -75,36 +75,13 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 
 async fn upload_avatar(
     pool: web::Data<PgPool>,
-    req: HttpRequest,
+    auth: AuthUser,
     mut payload: actix_multipart::Multipart,
 ) -> HttpResponse {
     use futures_util::StreamExt;
-    use std::io::Write;
     use tokio::fs;
 
-    let auth_header = match req.headers().get("Authorization") {
-        Some(h) => h.to_str().unwrap_or("").to_string(),
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(serde_json::json!({ "error": "Token manquant" }))
-        }
-    };
-
-    let token = match extract_token_from_header(&auth_header) {
-        Some(t) => t,
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(serde_json::json!({ "error": "Format de token invalide" }))
-        }
-    };
-
-    let claims = match validate_token(token) {
-        Ok(c) => c,
-        Err(_) => {
-            return HttpResponse::Unauthorized()
-                .json(serde_json::json!({ "error": "Token invalide" }))
-        }
-    };
+    let claims = auth.claims;
 
     let upload_dir = "uploads";
     if let Err(e) = fs::create_dir_all(upload_dir).await {
@@ -158,53 +135,58 @@ async fn upload_avatar(
                 .json(serde_json::json!({ "error": "Format non supporté (PNG, JPG, WEBP, GIF)" }));
         };
 
-        saved_filename = format!("{}_{}{}", claims.sub, uuid::Uuid::new_v4().simple(), ext);
-        let filepath = format!("{}/{}", upload_dir, saved_filename);
-        saved_filepath = filepath.clone();
-
-        let mut f = match std::fs::File::create(&filepath) {
-            Ok(file) => file,
-            Err(e) => {
-                tracing::error!("Erreur création fichier local: {}", e);
-                saved_filepath.clear(); // pas encore créé, rien à nettoyer
-                return HttpResponse::InternalServerError()
-                    .json(serde_json::json!({ "error": "Erreur serveur" }));
-            }
-        };
-
-        let mut size: usize = 0;
+        // Lire le contenu complet en mémoire pour vérifier les magic bytes avant écriture
         let max_size = 20 * 1024 * 1024; // 20 MB
+        let mut buf: Vec<u8> = Vec::with_capacity(512 * 1024);
 
         while let Some(chunk) = field.next().await {
             let data = match chunk {
                 Ok(d) => d,
                 Err(_) => {
-                    let _ = std::fs::remove_file(&filepath);
                     return HttpResponse::BadRequest()
                         .json(serde_json::json!({ "error": "Erreur transfert" }));
                 }
             };
-            size += data.len();
-            if size > max_size {
-                let _ = std::fs::remove_file(&filepath);
+            buf.extend_from_slice(&data);
+            if buf.len() > max_size {
                 return HttpResponse::PayloadTooLarge()
                     .json(serde_json::json!({ "error": "Fichier trop volumineux (20 Mo max)" }));
             }
-            f = match web::block(move || f.write_all(&data).map(|_| f)).await {
-                Ok(Ok(file)) => file,
-                Ok(Err(e)) => {
-                    tracing::error!("Erreur ecriture fichier: {}", e);
-                    let _ = std::fs::remove_file(&filepath);
-                    return HttpResponse::InternalServerError()
-                        .json(serde_json::json!({ "error": "Erreur serveur lors de l'ecriture" }));
-                }
-                Err(e) => {
-                    tracing::error!("Erreur block: {}", e);
-                    let _ = std::fs::remove_file(&filepath);
-                    return HttpResponse::InternalServerError()
-                        .json(serde_json::json!({ "error": "Erreur serveur" }));
-                }
-            };
+        }
+
+        // Validation magic bytes (signatures de fichiers réelles)
+        let valid_magic = match ext {
+            ".png"  => buf.starts_with(b"\x89PNG\r\n\x1a\n"),
+            ".jpg"  => buf.starts_with(b"\xff\xd8\xff"),
+            ".webp" => buf.len() >= 12 && &buf[0..4] == b"RIFF" && &buf[8..12] == b"WEBP",
+            ".gif"  => buf.starts_with(b"GIF87a") || buf.starts_with(b"GIF89a"),
+            _       => false,
+        };
+        if !valid_magic {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Contenu du fichier invalide (magic bytes incorrects)"
+            }));
+        }
+
+        saved_filename = format!("{}_{}{}", claims.sub, uuid::Uuid::new_v4().simple(), ext);
+        let filepath = format!("{}/{}", upload_dir, saved_filename);
+        saved_filepath = filepath.clone();
+
+        let filepath_clone = filepath.clone();
+        match web::block(move || std::fs::write(&filepath_clone, &buf)).await {
+            Ok(Ok(())) => {},
+            Ok(Err(e)) => {
+                tracing::error!("Erreur ecriture fichier {}: {}", filepath, e);
+                saved_filepath.clear();
+                return HttpResponse::InternalServerError()
+                    .json(serde_json::json!({ "error": "Erreur serveur lors de l'ecriture" }));
+            }
+            Err(e) => {
+                tracing::error!("Erreur block {}: {}", filepath, e);
+                saved_filepath.clear();
+                return HttpResponse::InternalServerError()
+                    .json(serde_json::json!({ "error": "Erreur serveur" }));
+            }
         }
     }
 
@@ -245,32 +227,10 @@ async fn upload_avatar(
 
 async fn update_me(
     pool: web::Data<PgPool>,
-    req: HttpRequest,
+    auth: AuthUser,
     body: web::Json<UpdateProfileRequest>,
 ) -> HttpResponse {
-    let auth_header = match req.headers().get("Authorization") {
-        Some(h) => h.to_str().unwrap_or("").to_string(),
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(serde_json::json!({ "error": "Token manquant" }))
-        }
-    };
-
-    let token = match extract_token_from_header(&auth_header) {
-        Some(t) => t,
-        None => {
-            return HttpResponse::Unauthorized()
-                .json(serde_json::json!({ "error": "Format de token invalide" }))
-        }
-    };
-
-    let claims = match validate_token(token) {
-        Ok(c) => c,
-        Err(_) => {
-            return HttpResponse::Unauthorized()
-                .json(serde_json::json!({ "error": "Token invalide" }))
-        }
-    };
+    let claims = auth.claims;
 
     let display_name = body
         .display_name
@@ -353,11 +313,8 @@ async fn update_me(
 
 // ── DELETE /api/users/me ──────────────────────────────────────────────────────
 
-async fn delete_me(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
-    let claims = match auth_from_request(&req) {
-        Ok(c) => c,
-        Err(r) => return r,
-    };
+async fn delete_me(pool: web::Data<PgPool>, auth: AuthUser) -> HttpResponse {
+    let claims = auth.claims;
 
     match sqlx::query("DELETE FROM users WHERE id = $1")
         .bind(claims.sub)
@@ -379,11 +336,8 @@ async fn delete_me(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
 
 // ── GET /api/users/me/steam-apikey ───────────────────────────────────────────
 
-async fn get_steam_apikey(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
-    let claims = match auth_from_request(&req) {
-        Ok(c) => c,
-        Err(r) => return r,
-    };
+async fn get_steam_apikey(pool: web::Data<PgPool>, auth: AuthUser) -> HttpResponse {
+    let claims = auth.claims;
 
     let row = sqlx::query_scalar::<_, Option<String>>(
         "SELECT steam_api_key_enc FROM users WHERE id = $1 AND is_active = true",
@@ -407,24 +361,28 @@ async fn get_steam_apikey(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResp
 
 async fn set_steam_apikey(
     pool: web::Data<PgPool>,
-    req: HttpRequest,
+    auth: AuthUser,
     body: web::Json<SteamApikeyRequest>,
 ) -> HttpResponse {
-    let claims = match auth_from_request(&req) {
-        Ok(c) => c,
-        Err(r) => return r,
-    };
+    let claims = auth.claims;
 
     let key = body.api_key.trim();
 
     // Supprimer la cle si vide
     if key.is_empty() {
-        let _ = sqlx::query(
+        match sqlx::query(
             "UPDATE users SET steam_api_key_enc = NULL, steam_api_key_hash = NULL, updated_at = NOW() WHERE id = $1",
         )
         .bind(claims.sub)
         .execute(pool.get_ref())
-        .await;
+        .await {
+            Ok(_) => {},
+            Err(e) => {
+                tracing::error!("Erreur suppression cle API Steam user={}: {}", claims.sub, e);
+                return HttpResponse::InternalServerError()
+                    .json(serde_json::json!({ "error": "Erreur lors de la suppression de la clé" }));
+            }
+        }
         return HttpResponse::Ok().json(serde_json::json!({ "ok": true, "has_key": false }));
     }
 
@@ -504,39 +462,20 @@ async fn set_steam_apikey(
     .await
     {
         Ok(_) => HttpResponse::Ok().json(serde_json::json!({ "ok": true, "has_key": true })),
+        Err(sqlx::Error::Database(e)) if e.constraint() == Some("uq_users_steam_api_key_hash") => {
+            HttpResponse::Conflict().json(serde_json::json!({
+                "error": "Cette clé API Steam est déjà utilisée par un autre compte"
+            }))
+        }
         Err(e) => {
-            // Violation de la contrainte UNIQUE (concurrence)
-            if e.to_string().contains("uq_users_steam_api_key_hash") {
-                return HttpResponse::Conflict().json(serde_json::json!({
-                    "error": "Cette clé API Steam est déjà utilisée par un autre compte"
-                }));
-            }
-            tracing::error!("Erreur set_steam_apikey: {}", e);
+            tracing::error!("Erreur set_steam_apikey user={}: {}", claims.sub, e);
             HttpResponse::InternalServerError()
                 .json(serde_json::json!({ "error": "Erreur interne du serveur" }))
         }
     }
 }
 
-/// Extrait et valide le token JWT depuis la requete
-fn auth_from_request(req: &HttpRequest) -> Result<crate::server::auth::Claims, HttpResponse> {
-    let auth_header = req
-        .headers()
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(|| {
-            HttpResponse::Unauthorized().json(serde_json::json!({ "error": "Token manquant" }))
-        })?;
 
-    let token = crate::server::auth::extract_token_from_header(auth_header).ok_or_else(|| {
-        HttpResponse::Unauthorized()
-            .json(serde_json::json!({ "error": "Format de token invalide" }))
-    })?;
-
-    crate::server::auth::validate_token(token).map_err(|_| {
-        HttpResponse::Unauthorized().json(serde_json::json!({ "error": "Token invalide" }))
-    })
-}
 
 // ── GET /api/users/{username} ─────────────────────────────────────────────────
 
@@ -635,11 +574,8 @@ async fn get_user_profile(pool: web::Data<PgPool>, path: web::Path<String>) -> H
 
 // ── PATCH /api/users/me/heartbeat ─────────────────────────────────────────────
 
-async fn heartbeat(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
-    let claims = match auth_from_request(&req) {
-        Ok(c) => c,
-        Err(r) => return r,
-    };
+async fn heartbeat(pool: web::Data<PgPool>, auth: AuthUser) -> HttpResponse {
+    let claims = auth.claims;
     sqlx::query("UPDATE users SET last_seen_at = NOW() WHERE id = $1")
         .bind(claims.sub)
         .execute(pool.get_ref())
@@ -650,11 +586,8 @@ async fn heartbeat(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
 
 // ── GET /api/users/me/titles ─────────────────────────────────────────────────
 
-async fn get_my_titles(pool: web::Data<PgPool>, req: HttpRequest) -> HttpResponse {
-    let claims = match auth_from_request(&req) {
-        Ok(c) => c,
-        Err(r) => return r,
-    };
+async fn get_my_titles(pool: web::Data<PgPool>, auth: AuthUser) -> HttpResponse {
+    let claims = auth.claims;
 
     let titles = sqlx::query_as::<_, TitleRow>(
         r#"

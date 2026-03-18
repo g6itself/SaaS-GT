@@ -518,67 +518,86 @@ pub async fn sync_steam_achievements(
         games_synced += 1;
     }
 
-    // 6. Snapshot du rang AVANT mise à jour des points (si snapshot absent ou >24h)
-    // Le snapshot capture le rang "avant ce sync" pour comparaison ultérieure.
-    sqlx::query(
-        r#"
-        UPDATE users u SET
-            rank_snapshot    = ranked.rank_pts,
-            rank_snapshot_at = NOW()
-        FROM (
-            SELECT id, RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts
-            FROM users
-            WHERE is_active = true
-        ) ranked
-        WHERE u.id = $1
-          AND ranked.id = $1
-          AND (u.rank_snapshot_at IS NULL OR u.rank_snapshot_at < NOW() - INTERVAL '24 hours')
-        "#,
-    )
-    .bind(user_id)
-    .execute(pool)
-    .await
-    .ok();
+    // 6+7. Transaction : snapshot rang + recalcul totaux (atomique)
+    // Les deux opérations doivent réussir ensemble ou être annulées ensemble.
+    let final_stats: (i64, i64) = {
+        let mut tx = match pool.begin().await {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::error!("Echec début transaction finales Steam user={}: {}", user_id, e);
+                return Err(e.into());
+            }
+        };
 
-    // 7. Recalcul bulk des totaux utilisateur (achievements, jeux, points)
-    // Formule points : 10 pts par achievement débloqué + 50 pts par jeu complété à 100%
-    let final_stats = sqlx::query_as::<_, (i64, i64)>(
-        r#"
-        UPDATE users
-        SET
-            total_achievements_count = (
-                SELECT COALESCE(SUM(achievements_unlocked), 0)
-                FROM user_game_stats
-                WHERE user_id = $1
-            ),
-            games_completed = (
-                SELECT COUNT(*)
-                FROM user_game_stats
-                WHERE user_id = $1
-                  AND achievements_total > 0
-                  AND achievements_unlocked >= achievements_total
-            ),
-            total_possible_achievements = (
-                SELECT COALESCE(SUM(achievements_total), 0)
-                FROM user_game_stats
-                WHERE user_id = $1
-            ),
-            total_points = (
-                SELECT COALESCE(SUM(achievements_unlocked), 0) * 10
-                     + COUNT(*) FILTER (WHERE achievements_total > 0 AND achievements_unlocked >= achievements_total) * 50
-                FROM user_game_stats
-                WHERE user_id = $1
-            )
-        WHERE id = $1
-        RETURNING total_achievements_count, games_completed::BIGINT
-        "#,
-    )
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await
-    .ok()
-    .flatten()
-    .unwrap_or((0, 0));
+        // 6. Snapshot du rang AVANT mise à jour des points
+        if let Err(e) = sqlx::query(
+            r#"
+            UPDATE users u SET
+                rank_snapshot    = ranked.rank_pts,
+                rank_snapshot_at = NOW()
+            FROM (
+                SELECT id, RANK() OVER (ORDER BY total_points DESC)::BIGINT AS rank_pts
+                FROM users
+                WHERE is_active = true
+            ) ranked
+            WHERE u.id = $1
+              AND ranked.id = $1
+              AND (u.rank_snapshot_at IS NULL OR u.rank_snapshot_at < NOW() - INTERVAL '24 hours')
+            "#,
+        )
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await {
+            tracing::warn!("Echec snapshot rang Steam user={}: {}", user_id, e);
+        }
+
+        // 7. Recalcul bulk des totaux utilisateur
+        let stats = sqlx::query_as::<_, (i64, i64)>(
+            r#"
+            UPDATE users
+            SET
+                total_achievements_count = (
+                    SELECT COALESCE(SUM(achievements_unlocked), 0)
+                    FROM user_game_stats
+                    WHERE user_id = $1
+                ),
+                games_completed = (
+                    SELECT COUNT(*)
+                    FROM user_game_stats
+                    WHERE user_id = $1
+                      AND achievements_total > 0
+                      AND achievements_unlocked >= achievements_total
+                ),
+                total_possible_achievements = (
+                    SELECT COALESCE(SUM(achievements_total), 0)
+                    FROM user_game_stats
+                    WHERE user_id = $1
+                ),
+                total_points = (
+                    SELECT COALESCE(SUM(achievements_unlocked), 0) * 10
+                         + COUNT(*) FILTER (WHERE achievements_total > 0 AND achievements_unlocked >= achievements_total) * 50
+                    FROM user_game_stats
+                    WHERE user_id = $1
+                )
+            WHERE id = $1
+            RETURNING total_achievements_count, games_completed::BIGINT
+            "#,
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .unwrap_or_else(|e| {
+            tracing::error!("Erreur recalcul totaux Steam user={}: {}", user_id, e);
+            None
+        })
+        .unwrap_or((0, 0));
+
+        if let Err(e) = tx.commit().await {
+            tracing::error!("Echec commit transaction finales Steam user={}: {}", user_id, e);
+        }
+
+        stats
+    };
 
     Ok(SyncStats {
         games_synced,
