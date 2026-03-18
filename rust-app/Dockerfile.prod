@@ -1,0 +1,74 @@
+# ─── Dockerfile Rust + Leptos – Production (multi-stage) ─────────────────────
+# Stage 1 : Builder — compile le binaire release + assets WASM/CSS
+# Stage 2 : Runtime — image minimale Debian slim, sans outils de build
+
+# ── Stage 1 : Builder ─────────────────────────────────────────────────────────
+FROM rust:1.82-slim-bookworm AS builder
+
+# Dépendances système nécessaires à la compilation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js LTS (nécessaire pour cargo-leptos build)
+RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Cible WASM pour le frontend Leptos
+RUN rustup target add wasm32-unknown-unknown
+
+# Outils Cargo (layer séparé pour le cache Docker)
+RUN cargo install cargo-leptos --locked
+RUN npm install -g sass
+
+WORKDIR /app
+
+# Pré-cache des dépendances Cargo (couche stable)
+COPY Cargo.toml Cargo.lock ./
+COPY src/lib.rs src/lib.rs
+RUN mkdir -p src && echo 'fn main(){}' > src/main.rs
+RUN cargo build --release 2>/dev/null || true
+RUN rm -f src/main.rs
+
+# Copier les sources complètes
+COPY . .
+
+# Variables SQLx en mode offline (pas de DB pendant le build)
+ENV SQLX_OFFLINE=true
+
+# Compilation release (binaire + assets WASM/CSS)
+RUN cargo leptos build --release
+
+# ── Stage 2 : Runtime ─────────────────────────────────────────────────────────
+FROM debian:bookworm-slim AS runtime
+
+# Dépendances runtime uniquement (libssl, libpq, ca-certificates)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    libpq5 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Utilisateur non-root pour la sécurité
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+WORKDIR /app
+
+# Copier le binaire compilé
+COPY --from=builder /app/target/server/release/achievement-tracker ./achievement-tracker
+
+# Copier les assets statiques générés (WASM, CSS, JS)
+COPY --from=builder /app/target/site ./target/site
+
+# Dossier uploads (monté comme volume en prod)
+RUN mkdir -p uploads && chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 3000
+
+CMD ["./achievement-tracker"]

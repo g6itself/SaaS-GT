@@ -1,0 +1,157 @@
+# ─── Docker Compose – Production ──────────────────────────────────────────────
+# Usage :
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Pré-requis :
+#   - Fichier .env.prod rempli (cp .env.prod.example .env.prod)
+#   - Certificat SSL : ./nginx/ssl/cert.pem + key.pem  (Let's Encrypt via Certbot)
+#   - Réseau externe "proxy_net" créé :  docker network create proxy_net
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  PostgreSQL 17 — base de données (non exposée au host en prod)
+  # ─────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: prod_postgres
+    restart: always
+    env_file: .env.prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Pas de ports exposés — accessible uniquement via le réseau interne Docker
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres/postgresql.prod.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Backend Rust — binaire release, réseau interne uniquement
+  # ─────────────────────────────────────────────────────────────────────────────
+  rust-app:
+    build:
+      context: ./rust-app
+      dockerfile: Dockerfile.prod
+    image: glorioustrophee/rust-app:latest
+    container_name: prod_rust
+    restart: always
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      RUST_LOG: warn
+      LEPTOS_SITE_ADDR: "0.0.0.0:3000"
+      LEPTOS_SITE_ROOT: "target/site"
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      STEAM_API_KEY: ${STEAM_API_KEY}
+      APP_BASE_URL: ${APP_BASE_URL}
+    expose:
+      - "3000"
+    volumes:
+      - avatar_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - internal
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Frontend Node.js — proxy + fichiers statiques
+  # ─────────────────────────────────────────────────────────────────────────────
+  node-app:
+    build:
+      context: ./node-app
+      dockerfile: Dockerfile.prod
+    image: glorioustrophee/node-app:latest
+    container_name: prod_node
+    restart: always
+    env_file: .env.prod
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      RUST_API_URL: http://rust-app:3000
+      CORS_ORIGIN: ${APP_BASE_URL}
+    expose:
+      - "3000"
+    volumes:
+      - avatar_uploads:/app/public/uploads/avatars
+    depends_on:
+      rust-app:
+        condition: service_healthy
+    networks:
+      - internal
+      - proxy_net
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Nginx — reverse proxy HTTPS + Let's Encrypt
+  # ─────────────────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: prod_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_webroot:/var/www/certbot:ro
+    depends_on:
+      - node-app
+    networks:
+      - proxy_net
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  #  Certbot — renouvellement automatique Let's Encrypt
+  # ─────────────────────────────────────────────────────────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: prod_certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    # Renouvellement automatique toutes les 12h
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
+    networks:
+      - proxy_net
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Volumes
+# ─────────────────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  avatar_uploads:
+  certbot_webroot:
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Réseaux
+# ─────────────────────────────────────────────────────────────────────────────
+networks:
+  internal:
+    # Réseau privé : postgres ↔ rust-app ↔ node-app (non accessible depuis l'extérieur)
+    internal: true
+  proxy_net:
+    # Réseau public : nginx ↔ node-app
+    external: true

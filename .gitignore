@@ -1,5 +1,6 @@
 # Variables d'environnement (NE JAMAIS committer)
 .env
+.env.prod
 
 # Certificats TLS (générés localement)
 certs/

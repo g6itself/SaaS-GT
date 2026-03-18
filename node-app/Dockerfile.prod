@@ -1,0 +1,31 @@
+# ─── Dockerfile Node.js – Production ─────────────────────────────────────────
+# Image minimale, pas de devDependencies, utilisateur non-root
+
+FROM node:24-alpine
+
+# Dépendances système minimales (pas de python/make/g++ — pas de native modules en prod)
+RUN apk add --no-cache curl
+
+# Utilisateur non-root
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+WORKDIR /app
+
+# Pré-cache des dépendances (layer stable)
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copier les sources
+COPY src/ ./src/
+COPY public/ ./public/
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -sf http://localhost:3000/health || exit 1
+
+CMD ["node", "src/index.js"]
