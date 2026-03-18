@@ -2299,16 +2299,28 @@
             placeholder="eyJhbGciOi..." autocomplete="off" maxlength="2048">
           <p class="text-[11px] text-amber-400/60 mt-1.5 ml-1">Le token expire après ~1h — renouvelez-le dès que la synchronisation échoue.</p>`;
       } else if (platform === 'gog') {
-        // Mode : première connexion GOG via nom d'utilisateur
+        // Mode : première connexion GOG via token OAuth (preuve de propriété)
         titleEl.textContent = 'Connecter GOG';
         btnText.textContent = 'Connecter';
         steamOauth.classList.add('hidden');
-        userIdSection.classList.remove('hidden');
-        apikeySection.classList.add('hidden');
+        userIdSection.classList.add('hidden');
+        apikeySection.classList.remove('hidden');
         submitRow.classList.remove('hidden');
-        document.getElementById('platform-user-id-label').textContent = 'Nom d\'utilisateur GOG';
-        hintEl.innerHTML = 'Votre pseudo GOG — visible sur <strong>gog.com/u/votre-pseudo</strong>.';
-        document.getElementById('platform-user-id').placeholder = 'ex : votre-pseudo';
+        apikeySection.innerHTML = `
+          <div class="mb-3 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+            <svg class="w-4 h-4 text-white/40 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <span class="text-[12px] text-white/50">Votre token GOG prouve que vous êtes bien propriétaire du compte.
+              Dans <strong class="text-white/70">GOG Galaxy</strong>, allez dans
+              <strong class="text-white/70">Paramètres → Connexions</strong>, puis copiez le token d'accès.</span>
+          </div>
+          <div id="platform-apikey-status" class="hidden mb-3"></div>
+          <label class="block text-[13px] font-medium text-white/90 mb-1.5 ml-1">Token OAuth GOG</label>
+          <input type="text" id="platform-apikey" class="input-clean font-mono text-[12px]"
+            placeholder="eyJhbGciOi..." autocomplete="off" maxlength="2048">
+          <p class="text-[11px] text-white/30 mt-1.5 ml-1">Le compte associé au token sera automatiquement détecté — aucune saisie de pseudo requise.</p>
+          <p class="text-[11px] text-amber-400/60 mt-1 ml-1">Le token expire après ~1h — renouvelez-le dès que la synchronisation échoue.</p>`;
       } else {
         // Mode : connexion Epic ou autre via identifiant manuel
         titleEl.textContent = 'Connecter ' + meta.name;
@@ -2526,6 +2538,40 @@
         return;
       }
 
+      // Connexion GOG via token (preuve de propriété)
+      if (currentPlatformToConnect === 'gog') {
+        if (!apikey) {
+          errDiv.textContent = 'Veuillez coller votre token OAuth GOG.';
+          errWrapper.classList.add('show');
+          return;
+        }
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Vérification du token\u2026';
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/platforms/gog/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ token: apikey })
+          });
+          const d = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(d.error || 'Erreur lors de la connexion GOG.');
+          gogDataLoadedAt = 0;
+          succWrapper.classList.add('show');
+          await loadPlatforms();
+          renderPlatformsSection();
+          setTimeout(() => closePlatformModal(), 1500);
+        } catch (err) {
+          errDiv.textContent = err.message;
+          errWrapper.classList.add('show');
+        } finally {
+          btn.innerHTML = orig;
+          btn.disabled = false;
+          lucide.createIcons();
+        }
+        return;
+      }
+
       if (!userId) {
         errDiv.textContent = 'Veuillez renseigner votre identifiant de plateforme.';
         errWrapper.classList.add('show');
@@ -2533,27 +2579,14 @@
       }
 
       const orig = btn.innerHTML;
-      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>V\u00e9rification\u2026';
+      btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Connexion\u2026';
       btn.disabled = true;
 
       try {
-        // Vérification et résolution du compte GOG avant connexion
-        let resolvedGogId = userId;
-        if (currentPlatformToConnect === 'gog') {
-          const verifyRes = await fetch(`/api/platforms/gog/verify?username=${encodeURIComponent(userId)}`);
-          const verifyData = await verifyRes.json().catch(() => ({}));
-          if (!verifyRes.ok || !verifyData.valid) {
-            throw new Error(verifyData.error || 'Compte GOG introuvable. V\u00e9rifiez votre nom d\'utilisateur.');
-          }
-          resolvedGogId = verifyData.user_id; // ID numérique résolu automatiquement
-        }
-
-        btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block mr-2"></div>Connexion\u2026';
-
         const res = await fetch(`/api/platforms/${encodeURIComponent(currentPlatformToConnect)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ platform_user_id: resolvedGogId, platform_username: null, access_token: null })
+          body: JSON.stringify({ platform_user_id: userId, platform_username: null, access_token: null })
         });
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));

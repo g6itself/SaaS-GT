@@ -49,7 +49,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/steam/games", web::get().to(steam_games))
             .route("/steam/games/completed", web::get().to(steam_completed_games))
             .route("/steam/achievements/recent", web::get().to(steam_recent_achievements))
-            // Données GOG depuis la DB
+            // GOG : connexion via token (preuve de propriété) + données depuis DB
+            .route("/gog/connect", web::post().to(gog_connect_with_token))
             .route("/gog/verify", web::get().to(gog_verify_user))
             .route("/gog/games", web::get().to(gog_games))
             .route("/gog/games/completed", web::get().to(gog_completed_games))
@@ -482,9 +483,82 @@ async fn sync_platform(
     }
 }
 
+// ─── Struct pour la connexion GOG avec token ──────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct GogConnectRequest {
+    token: String,
+}
+
+/// POST /api/platforms/gog/connect — Connecte un compte GOG en prouvant la propriété via token OAuth.
+///
+/// L'utilisateur fournit son token GOG Bearer. On appelle userData.json pour récupérer
+/// l'userId et le username réels — c'est la seule preuve valide de possession du compte.
+/// Aucun scraping, aucune entrée manuelle de username : le token fait foi.
+async fn gog_connect_with_token(
+    pool: web::Data<PgPool>,
+    auth: AuthUser,
+    body: web::Json<GogConnectRequest>,
+) -> HttpResponse {
+    let user_id = auth.user_id;
+    let token = body.token.trim();
+
+    if token.is_empty() {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Token GOG manquant"
+        }));
+    }
+
+    // Vérifier le token auprès de l'API GOG et récupérer les infos du propriétaire
+    match crate::server::platforms::gog::resolve_gog_token(token).await {
+        Ok((gog_user_id, gog_username)) => {
+            let result = sqlx::query(
+                r#"
+                INSERT INTO platform_connections (user_id, platform, platform_user_id, platform_username, access_token)
+                VALUES ($1, 'gog'::platform_type, $2, $3, $4)
+                ON CONFLICT (user_id, platform) DO UPDATE
+                SET platform_user_id = $2, platform_username = $3, access_token = $4, updated_at = NOW()
+                "#,
+            )
+            .bind(user_id)
+            .bind(&gog_user_id)
+            .bind(&gog_username)
+            .bind(token)
+            .execute(pool.get_ref())
+            .await;
+
+            match result {
+                Ok(_) => HttpResponse::Ok().json(serde_json::json!({
+                    "ok": true,
+                    "user_id": gog_user_id,
+                    "username": gog_username,
+                    "message": format!("Compte GOG '{}' connecté avec succès", gog_username)
+                })),
+                Err(sqlx::Error::Database(e)) if e.constraint() == Some("uq_platform_connections_platform_user_id") => {
+                    tracing::warn!("GOG user_id {} déjà utilisé par un autre compte (user={})", gog_user_id, user_id);
+                    HttpResponse::Conflict().json(serde_json::json!({
+                        "error": "Ce compte GOG est déjà associé à un autre compte sur la plateforme"
+                    }))
+                }
+                Err(e) => {
+                    tracing::error!("Erreur connexion GOG user={}: {}", user_id, e);
+                    HttpResponse::InternalServerError().json(serde_json::json!({
+                        "error": "Erreur lors de l'enregistrement de la connexion GOG"
+                    }))
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!("Token GOG invalide pour user={}: {}", user_id, e);
+            HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": format!("{}", e)
+            }))
+        }
+    }
+}
+
 /// GET /api/platforms/gog/verify?username={input} — résoudre un username ou ID GOG en ID numérique
-/// Accepte un nom d'utilisateur GOG (ex: "g6itself") ou un ID numérique déjà connu.
-/// Retourne { valid, user_id, username } — utilisé par le frontend avant de connecter le compte.
+/// Conservé pour rétrocompatibilité, mais le flow recommandé est /gog/connect avec token.
 async fn gog_verify_user(query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
     let input = match query.get("username") {
         Some(u) if !u.is_empty() => u.clone(),

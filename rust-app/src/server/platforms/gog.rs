@@ -25,7 +25,57 @@ pub async fn get_user_gog_credentials(
     Ok(row)
 }
 
-// ─── Vérification compte ──────────────────────────────────────────────────────
+// ─── Résolution compte par token OAuth (preuve de propriété) ─────────────────
+
+/// Vérifie un token OAuth GOG et retourne (userId_numérique, username) du propriétaire.
+///
+/// Appelle embed.gog.com/userData.json — endpoint officiel GOG qui retourne les données
+/// du compte propriétaire du token. C'est la seule preuve valide de possession du compte :
+/// seul le titulaire peut obtenir un token valide via GOG Galaxy ou le portail GOG.
+pub async fn resolve_gog_token(
+    token: &str,
+) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()?;
+
+    let resp = client
+        .get(format!("{}/userData.json", GOG_EMBED_BASE))
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if resp.status() == 401 || resp.status() == 403 {
+        return Err("Token GOG invalide ou expiré. Obtenez un nouveau token dans GOG Galaxy (Paramètres → Connexions).".into());
+    }
+    if !resp.status().is_success() {
+        return Err(format!(
+            "API GOG inaccessible (HTTP {}). Réessayez dans un instant.",
+            resp.status()
+        ).into());
+    }
+
+    let data: serde_json::Value = resp.json().await?;
+
+    // userId peut être un entier ou une string selon la version de l'API GOG
+    let user_id = data["userId"]
+        .as_str()
+        .map(|s| s.to_string())
+        .or_else(|| data["userId"].as_u64().map(|n| n.to_string()))
+        .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))
+        .ok_or("Réponse GOG invalide : userId manquant ou format inattendu")?;
+
+    let username = data["username"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&user_id)
+        .to_string();
+
+    tracing::info!("Token GOG validé : userId={} username={}", user_id, username);
+    Ok((user_id, username))
+}
+
+// ─── Vérification compte (scraping — conservé pour rétrocompat) ───────────────
 
 /// Résolution GOG : accepte un username ou un User ID numérique.
 /// - Si c'est un ID numérique → retourne (id, username) tel quel.
