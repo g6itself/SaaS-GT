@@ -49,8 +49,12 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/steam/games", web::get().to(steam_games))
             .route("/steam/games/completed", web::get().to(steam_completed_games))
             .route("/steam/achievements/recent", web::get().to(steam_recent_achievements))
-            // GOG : connexion via token (preuve de propriété) + données depuis DB
+            // GOG OAuth2 — flow popup : /auth retourne l'URL, /exchange reçoit le code
+            .route("/gog/auth", web::get().to(gog_oauth_auth))
+            .route("/gog/exchange", web::post().to(gog_oauth_exchange))
+            // GOG : connexion via token manuel (fallback) + données depuis DB
             .route("/gog/connect", web::post().to(gog_connect_with_token))
+            .route("/gog/token-status", web::get().to(gog_token_status))
             .route("/gog/verify", web::get().to(gog_verify_user))
             .route("/gog/games", web::get().to(gog_games))
             .route("/gog/games/completed", web::get().to(gog_completed_games))
@@ -154,6 +158,16 @@ fn profile_redirect(error: Option<&str>) -> HttpResponse {
             "/profile.html?steam_err={}",
             msg.replace(' ', "+")
         ),
+    };
+    HttpResponse::Found()
+        .append_header(("Location", url))
+        .finish()
+}
+
+fn gog_profile_redirect(error: Option<&str>) -> HttpResponse {
+    let url = match error {
+        None => "/profile.html?gog_ok=1".to_string(),
+        Some(msg) => format!("/profile.html?gog_err={}", msg.replace(' ', "+")),
     };
     HttpResponse::Found()
         .append_header(("Location", url))
@@ -434,11 +448,26 @@ async fn sync_platform(
                     }
                 }
                 "gog" => {
+                    // Utiliser get_user_gog_credentials pour bénéficier de l'auto-refresh
+                    let (gog_user_id, fresh_token) =
+                        match crate::server::platforms::gog::get_user_gog_credentials(
+                            pool.get_ref(),
+                            user_id,
+                        )
+                        .await
+                        {
+                            Ok(creds) => creds,
+                            Err(e) => {
+                                return HttpResponse::BadRequest().json(serde_json::json!({
+                                    "error": format!("Impossible de récupérer le token GOG : {}", e)
+                                }));
+                            }
+                        };
                     match crate::server::platforms::gog::sync_gog_achievements(
                         pool.get_ref(),
                         user_id,
-                        &platform_user_id,
-                        access_token.as_deref().unwrap_or(""),
+                        &gog_user_id,
+                        fresh_token.as_deref().unwrap_or(""),
                     )
                     .await
                     {
@@ -483,6 +512,126 @@ async fn sync_platform(
     }
 }
 
+// ─── GOG OAuth2 ──────────────────────────────────────────────────────────────
+
+/// GET /api/platforms/gog/auth — retourne l'URL d'autorisation GOG OAuth2.
+/// Le frontend ouvre cette URL dans une popup. Le redirect_uri est fixe (embed.gog.com)
+/// car c'est la seule valeur acceptée par le client_id Galaxy public.
+async fn gog_oauth_auth(_auth: AuthUser) -> HttpResponse {
+    let auth_url = crate::server::platforms::gog::gog_oauth_url();
+    HttpResponse::Ok().json(serde_json::json!({ "redirect_url": auth_url }))
+}
+
+#[derive(serde::Deserialize)]
+struct GogExchangeRequest {
+    code: String,
+}
+
+/// POST /api/platforms/gog/exchange — reçoit le code d'autorisation GOG depuis le frontend.
+///
+/// Flow popup :
+/// 1. Frontend ouvre une popup vers l'URL retournée par /gog/auth
+/// 2. L'utilisateur se connecte → GOG redirige vers embed.gog.com/on_login_success?code=XXX
+/// 3. La popup intercepte le code et l'envoie ici via postMessage + fetch
+/// 4. Ce handler échange le code contre les tokens et les stocke en DB
+async fn gog_oauth_exchange(
+    pool: web::Data<PgPool>,
+    auth: AuthUser,
+    body: web::Json<GogExchangeRequest>,
+) -> HttpResponse {
+    let user_id = auth.user_id;
+    let code = body.code.trim().to_string();
+
+    if code.is_empty() {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Code d'autorisation manquant"
+        }));
+    }
+
+    // Échanger le code contre les tokens
+    let token_resp =
+        match crate::server::platforms::gog::exchange_gog_code(&code).await {
+            Ok(t) => t,
+            Err(e) => {
+                tracing::error!("Échange code GOG échoué user={}: {}", user_id, e);
+                return HttpResponse::BadGateway().json(serde_json::json!({
+                    "error": format!("Échange du code GOG échoué : {}", e)
+                }));
+            }
+        };
+
+    // Vérifier l'identité en appelant userData.json avec le nouveau token
+    let (gog_user_id, gog_username) =
+        match crate::server::platforms::gog::resolve_gog_token(&token_resp.access_token).await {
+            Ok(info) => info,
+            Err(e) => {
+                tracing::error!("Vérification token GOG post-échange échouée user={}: {}", user_id, e);
+                return HttpResponse::BadGateway().json(serde_json::json!({
+                    "error": "Vérification du compte GOG échouée"
+                }));
+            }
+        };
+
+    // Calculer l'expiration précise depuis expires_in (en secondes)
+    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(token_resp.expires_in);
+
+    // Upsert avec access_token + refresh_token + expires_at
+    let result = sqlx::query(
+        r#"
+        INSERT INTO platform_connections
+            (user_id, platform, platform_user_id, platform_username, access_token, refresh_token, token_expires_at)
+        VALUES ($1, 'gog'::platform_type, $2, $3, $4, $5, $6)
+        ON CONFLICT (user_id, platform) DO UPDATE
+        SET platform_user_id  = $2,
+            platform_username = $3,
+            access_token      = $4,
+            refresh_token     = $5,
+            token_expires_at  = $6,
+            updated_at        = NOW()
+        "#,
+    )
+    .bind(user_id)
+    .bind(&gog_user_id)
+    .bind(&gog_username)
+    .bind(&token_resp.access_token)
+    .bind(&token_resp.refresh_token)
+    .bind(expires_at)
+    .execute(pool.get_ref())
+    .await;
+
+    match result {
+        Ok(_) => {
+            tracing::info!(
+                "GOG OAuth2 connecté : user={} gog_user={} ({}) expires_in={}s",
+                user_id, gog_user_id, gog_username, token_resp.expires_in
+            );
+            HttpResponse::Ok().json(serde_json::json!({
+                "ok": true,
+                "user_id": gog_user_id,
+                "username": gog_username,
+                "token_expires_at": expires_at.to_rfc3339(),
+            }))
+        }
+        Err(sqlx::Error::Database(ref e))
+            if e.constraint() == Some("uq_platform_connections_platform_user_id") =>
+        {
+            tracing::warn!(
+                "GOG user_id {} déjà associé à un autre compte (user={})",
+                gog_user_id, user_id
+            );
+            HttpResponse::Conflict().json(serde_json::json!({
+                "error": "Ce compte GOG est déjà associé à un autre compte"
+            }))
+        }
+        Err(e) => {
+            tracing::error!("Erreur sauvegarde connexion GOG user={}: {}", user_id, e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Erreur lors de l'enregistrement"
+            }))
+        }
+    }
+}
+
 // ─── Struct pour la connexion GOG avec token ──────────────────────────────────
 
 #[derive(serde::Deserialize)]
@@ -512,18 +661,24 @@ async fn gog_connect_with_token(
     // Vérifier le token auprès de l'API GOG et récupérer les infos du propriétaire
     match crate::server::platforms::gog::resolve_gog_token(token).await {
         Ok((gog_user_id, gog_username)) => {
+            // Les tokens GOG Galaxy expirent après ~3 heures.
+            // On stocke l'expiry estimée pour pouvoir prévenir l'utilisateur avant expiration.
+            let expires_at = chrono::Utc::now() + chrono::Duration::hours(3);
+
             let result = sqlx::query(
                 r#"
-                INSERT INTO platform_connections (user_id, platform, platform_user_id, platform_username, access_token)
-                VALUES ($1, 'gog'::platform_type, $2, $3, $4)
+                INSERT INTO platform_connections (user_id, platform, platform_user_id, platform_username, access_token, token_expires_at)
+                VALUES ($1, 'gog'::platform_type, $2, $3, $4, $5)
                 ON CONFLICT (user_id, platform) DO UPDATE
-                SET platform_user_id = $2, platform_username = $3, access_token = $4, updated_at = NOW()
+                SET platform_user_id = $2, platform_username = $3, access_token = $4,
+                    token_expires_at = $5, updated_at = NOW()
                 "#,
             )
             .bind(user_id)
             .bind(&gog_user_id)
             .bind(&gog_username)
             .bind(token)
+            .bind(expires_at)
             .execute(pool.get_ref())
             .await;
 
@@ -532,6 +687,7 @@ async fn gog_connect_with_token(
                     "ok": true,
                     "user_id": gog_user_id,
                     "username": gog_username,
+                    "token_expires_at": expires_at.to_rfc3339(),
                     "message": format!("Compte GOG '{}' connecté avec succès", gog_username)
                 })),
                 Err(sqlx::Error::Database(e)) if e.constraint() == Some("uq_platform_connections_platform_user_id") => {
@@ -553,6 +709,88 @@ async fn gog_connect_with_token(
             HttpResponse::Unauthorized().json(serde_json::json!({
                 "error": format!("{}", e)
             }))
+        }
+    }
+}
+
+/// GET /api/platforms/gog/token-status — état du token GOG de l'utilisateur connecté.
+///
+/// Retourne :
+///   - `status: "ok"` si le token est valide et expire dans plus de 30 minutes
+///   - `status: "expiring_soon"` si le token expire dans moins de 30 minutes
+///   - `status: "expired"` si `token_expires_at` est dans le passé
+///   - `status: "no_token"` si aucun token n'est enregistré
+///   - `minutes_left` : minutes restantes (négatif si expiré)
+///   - `token_expires_at` : timestamp ISO 8601 de l'expiration estimée
+///
+/// Le client peut appeler cet endpoint au chargement du profil et afficher
+/// une bannière invitant l'utilisateur à renouveler son token si nécessaire.
+async fn gog_token_status(
+    pool: web::Data<PgPool>,
+    auth: AuthUser,
+) -> HttpResponse {
+    let user_id = auth.user_id;
+
+    let row = sqlx::query_as::<_, (Option<String>, Option<chrono::DateTime<chrono::Utc>>)>(
+        "SELECT access_token, token_expires_at FROM platform_connections \
+         WHERE user_id = $1 AND platform = 'gog'::platform_type",
+    )
+    .bind(user_id)
+    .fetch_optional(pool.get_ref())
+    .await;
+
+    match row {
+        Ok(Some((access_token, token_expires_at))) => {
+            let has_token = access_token.map(|t| !t.is_empty()).unwrap_or(false);
+
+            if !has_token {
+                return HttpResponse::Ok().json(serde_json::json!({
+                    "status": "no_token",
+                    "message": "Aucun token GOG enregistré. Connectez votre compte GOG."
+                }));
+            }
+
+            match token_expires_at {
+                None => {
+                    // Token présent mais pas d'expiry stockée (connexions antérieures)
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "status": "unknown",
+                        "message": "Expiration inconnue. Reconnectez votre compte GOG pour activer la surveillance."
+                    }))
+                }
+                Some(expires_at) => {
+                    let now = chrono::Utc::now();
+                    let minutes_left = (expires_at - now).num_minutes();
+
+                    let status = if minutes_left < 0 {
+                        "expired"
+                    } else if minutes_left < 30 {
+                        "expiring_soon"
+                    } else {
+                        "ok"
+                    };
+
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "status": status,
+                        "minutes_left": minutes_left,
+                        "token_expires_at": expires_at.to_rfc3339(),
+                        "message": match status {
+                            "expired" => "Token GOG expiré. Reconnectez votre compte GOG avec un nouveau token.",
+                            "expiring_soon" => "Token GOG bientôt expiré. Renouvelez-le dans les paramètres.",
+                            _ => "Token GOG valide.",
+                        }
+                    }))
+                }
+            }
+        }
+        Ok(None) => HttpResponse::Ok().json(serde_json::json!({
+            "status": "not_connected",
+            "message": "Compte GOG non connecté."
+        })),
+        Err(e) => {
+            tracing::error!("Erreur token-status GOG user={}: {}", user_id, e);
+            HttpResponse::InternalServerError()
+                .json(serde_json::json!({ "error": "Erreur interne du serveur" }))
         }
     }
 }
@@ -829,15 +1067,30 @@ async fn update_platform_apikey(
 
     let platform = path.into_inner();
 
-    let result = sqlx::query(
-        "UPDATE platform_connections SET access_token = $1, updated_at = NOW() \
-         WHERE user_id = $2 AND platform = $3::platform_type",
-    )
-    .bind(&body.access_token)
-    .bind(user_id)
-    .bind(&platform)
-    .execute(pool.get_ref())
-    .await;
+    // Pour GOG, mettre à jour token_expires_at (durée estimée ~3h)
+    let result = if platform == "gog" {
+        let expires_at = chrono::Utc::now() + chrono::Duration::hours(3);
+        sqlx::query(
+            "UPDATE platform_connections SET access_token = $1, token_expires_at = $2, updated_at = NOW() \
+             WHERE user_id = $3 AND platform = $4::platform_type",
+        )
+        .bind(&body.access_token)
+        .bind(expires_at)
+        .bind(user_id)
+        .bind(&platform)
+        .execute(pool.get_ref())
+        .await
+    } else {
+        sqlx::query(
+            "UPDATE platform_connections SET access_token = $1, updated_at = NOW() \
+             WHERE user_id = $2 AND platform = $3::platform_type",
+        )
+        .bind(&body.access_token)
+        .bind(user_id)
+        .bind(&platform)
+        .execute(pool.get_ref())
+        .await
+    };
 
     match result {
         Ok(r) if r.rows_affected() > 0 => {
